@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CAIT Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">✓</div>
+      <div>
+        <h1>CAIT Tracker</h1>
+        <p>Registro rápido de tareas por paciente (sin login)</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h2>Añadir paciente</h2>
+      <form id="patientForm" class="grid">
+        <label class="field">
+          <span>Nombre / Código</span>
+          <input id="patientName" type="text" placeholder="Ej: A.B. (2019) / NH1234" required />
+        </label>
+
+        <label class="field">
+          <span>Notas (opcional)</span>
+          <input id="patientNotes" type="text" placeholder="Ej: referente / observaciones rápidas" />
+        </label>
+
+        <button class="btn primary" type="submit">Guardar paciente</button>
+      </form>
+
+      <div class="hint">
+        Consejo: si vas a meter datos reales, usa códigos (RGPD). Si no, te estás metiendo en un lío.
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <h2>Panel</h2>
+
+        <div class="filters">
+          <select id="viewFilter">
+            <option value="all">Ver: todo</option>
+            <option value="overdue">Atrasadas</option>
+            <option value="dueSoon">Próximas (≤ 14 días)</option>
+            <option value="dueNow">Pendientes (hoy o antes)</option>
+          </select>
+
+          <input id="searchBox" type="search" placeholder="Buscar paciente..." />
+        </div>
+      </div>
+
+      <div id="stats" class="stats"></div>
+      <div id="list" class="list"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Hecho para uso personal. No es historia clínica.</small>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
