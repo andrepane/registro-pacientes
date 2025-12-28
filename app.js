@@ -1,17 +1,13 @@
-// app.js (ESM)
-// Firebase v9+ via CDN modules
-
+// app.js (ESM) - Firebase v9+ CDN modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import {
   getFirestore,
   collection,
   addDoc,
   doc,
-  setDoc,
   updateDoc,
   deleteDoc,
   getDoc,
-  getDocs,
   query,
   orderBy,
   onSnapshot,
@@ -20,9 +16,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 /**
- * 1) Crea un proyecto en Firebase Console
- * 2) Activa Firestore Database
- * 3) Copia aquí tu firebaseConfig (Project settings -> Your apps -> Web app)
+ * Pega tu firebaseConfig real aquí (Firebase Console -> Project settings -> Web app).
  */
 const firebaseConfig = {
   apiKey: "TU_API_KEY",
@@ -36,24 +30,64 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ====== Ajusta tus tareas recurrentes aquí ======
+// Tareas por defecto (puedes cambiar nombres y frecuencias)
 const TASK_TEMPLATES = [
-  { type: "Entorno", intervalMonths: 1 },
-  { type: "Sesión familiar", intervalMonths: 3 },
-  { type: "PIAT", intervalMonths: 6 }
+  { type: "ENT", label: "Entorno", intervalMonths: 1 },
+  { type: "FAM", label: "Sesión familiar", intervalMonths: 3 },
+  { type: "PIAT", label: "PIAT", intervalMonths: 6 }
 ];
 
-// ====== UI Refs ======
+// ===== UI refs
+const toggleAdd = document.getElementById("toggleAdd");
+const addCard = document.getElementById("addCard");
+const closeAdd = document.getElementById("closeAdd");
+
 const patientForm = document.getElementById("patientForm");
 const patientName = document.getElementById("patientName");
 const patientNotes = document.getElementById("patientNotes");
-const viewFilter = document.getElementById("viewFilter");
-const searchBox = document.getElementById("searchBox");
-const listEl = document.getElementById("list");
-const statsEl = document.getElementById("stats");
 
-// ====== Helpers ======
+const prevMonthBtn = document.getElementById("prevMonth");
+const nextMonthBtn = document.getElementById("nextMonth");
+const goTodayBtn = document.getElementById("goToday");
+const monthTitle = document.getElementById("monthTitle");
+const monthSubtitle = document.getElementById("monthSubtitle");
+
+const searchBox = document.getElementById("searchBox");
+const kpisEl = document.getElementById("kpis");
+const listEl = document.getElementById("list");
+const listHint = document.getElementById("listHint");
+
+const segButtons = Array.from(document.querySelectorAll(".seg"));
+
+// ===== State
+let patients = [];
+let tasksByPatient = new Map();
+
+let viewMode = "month"; // month | urgent | all
+let cursor = new Date(); // month cursor
+
+// ===== Collections
+const patientsCol = collection(db, "patients");
+const tasksCol = collection(db, "tasks");
+
+// ===== Helpers
 function pad(n){ return String(n).padStart(2, "0"); }
+
+function escapeHtml(str){
+  return String(str ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function toDate(maybeTimestamp){
+  if (!maybeTimestamp) return null;
+  if (maybeTimestamp instanceof Date) return maybeTimestamp;
+  if (maybeTimestamp.seconds) return new Date(maybeTimestamp.seconds * 1000);
+  return new Date(maybeTimestamp);
+}
 
 function formatDate(d){
   if (!d) return "—";
@@ -61,83 +95,92 @@ function formatDate(d){
   return `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}/${dt.getFullYear()}`;
 }
 
-function toDate(maybeTimestamp){
-  if (!maybeTimestamp) return null;
-  if (maybeTimestamp instanceof Date) return maybeTimestamp;
-  // Firestore Timestamp
-  if (maybeTimestamp.seconds) return new Date(maybeTimestamp.seconds * 1000);
-  return new Date(maybeTimestamp);
+function startOfMonth(d){
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function endOfMonth(d){
+  return new Date(d.getFullYear(), d.getMonth()+1, 0, 23, 59, 59, 999);
+}
+function isSameMonth(a, b){
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
 function addMonths(date, months){
   const d = new Date(date);
   const day = d.getDate();
   d.setMonth(d.getMonth() + months);
-
-  // Ajuste para meses con menos días (ej: 31 -> 30/28)
   if (d.getDate() < day) d.setDate(0);
   return d;
 }
 
-function daysDiff(a, b){
-  // b - a en días
+function dayDiff(from, to){
   const ms = 24 * 60 * 60 * 1000;
-  const A = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
-  const B = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+  const A = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+  const B = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
   return Math.round((B - A) / ms);
 }
 
+// Status logic -> “se intuye” por color + tag (ATR / HOY / MES / +Xd / OK)
 function statusFor(nextDue){
-  if (!nextDue) return { label:"Sin fecha", cls:"warn" };
-  const today = new Date();
-  const diff = daysDiff(today, nextDue); // nextDue - today
-  if (diff < 0) return { label:`Atrasada (${Math.abs(diff)}d)`, cls:"bad" };
-  if (diff === 0) return { label:"Hoy", cls:"bad" };
-  if (diff <= 14) return { label:`Próxima (${diff}d)`, cls:"warn" };
-  return { label:`Ok (${diff}d)`, cls:"ok" };
-}
-
-function matchesView(nextDue){
-  const v = viewFilter.value;
-  if (v === "all") return true;
-  if (!nextDue) return true;
+  if (!nextDue) return { cls: "warn", tag: "—", sort: 999999 };
 
   const today = new Date();
-  const diff = daysDiff(today, nextDue);
-  if (v === "overdue") return diff < 0;
-  if (v === "dueSoon") return diff >= 0 && diff <= 14;
-  if (v === "dueNow") return diff <= 0;
-  return true;
+  const diff = dayDiff(today, nextDue); // next - today
+
+  if (diff < 0) return { cls: "bad", tag: "ATR", sort: -10000 + diff };
+  if (diff === 0) return { cls: "bad", tag: "HOY", sort: -5000 };
+  if (diff <= 14) return { cls: "warn", tag: `+${diff}d`, sort: diff };
+  return { cls: "ok", tag: "OK", sort: diff };
 }
 
-// ====== Data Model ======
-// patients/{patientId}
-// tasks/{taskId} -> { patientId, type, intervalMonths, lastDone, nextDue, createdAt }
+function monthLabel(d){
+  const months = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  return `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
 
-const patientsCol = collection(db, "patients");
-const tasksCol = collection(db, "tasks");
+function setActiveSeg(){
+  segButtons.forEach(b => b.classList.toggle("active", b.dataset.view === viewMode));
+}
 
-// ====== Create patient + default tasks ======
+// ===== UI show/hide add card
+toggleAdd.addEventListener("click", () => addCard.classList.toggle("hidden"));
+closeAdd.addEventListener("click", () => addCard.classList.add("hidden"));
+
+// ===== Month navigation
+prevMonthBtn.addEventListener("click", () => { cursor = addMonths(cursor, -1); render(); });
+nextMonthBtn.addEventListener("click", () => { cursor = addMonths(cursor, 1); render(); });
+goTodayBtn.addEventListener("click", () => { cursor = new Date(); render(); });
+
+// ===== Segmented view
+segButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    viewMode = btn.dataset.view;
+    setActiveSeg();
+    render();
+  });
+});
+setActiveSeg();
+
+// ===== Create patient + default tasks (nextDue = hoy)
 patientForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const name = patientName.value.trim();
   const notes = patientNotes.value.trim();
-
   if (!name) return;
 
-  // 1) Create patient
   const patientRef = await addDoc(patientsCol, {
     name,
     notes,
     createdAt: serverTimestamp()
   });
 
-  // 2) Create default tasks (initially due today)
   const now = new Date();
   for (const tpl of TASK_TEMPLATES){
     await addDoc(tasksCol, {
       patientId: patientRef.id,
-      type: tpl.type,
+      type: tpl.type,           // ENT / FAM / PIAT
+      label: tpl.label,         // texto corto interno (por si lo quieres mostrar luego)
       intervalMonths: tpl.intervalMonths,
       lastDone: null,
       nextDue: Timestamp.fromDate(now),
@@ -147,12 +190,10 @@ patientForm.addEventListener("submit", async (e) => {
 
   patientName.value = "";
   patientNotes.value = "";
+  addCard.classList.add("hidden");
 });
 
-// ====== Live listeners ======
-let patients = [];
-let tasksByPatient = new Map();
-
+// ===== Realtime listeners
 onSnapshot(query(patientsCol, orderBy("createdAt", "desc")), (snap) => {
   patients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   render();
@@ -160,6 +201,7 @@ onSnapshot(query(patientsCol, orderBy("createdAt", "desc")), (snap) => {
 
 onSnapshot(query(tasksCol, orderBy("createdAt", "desc")), (snap) => {
   tasksByPatient = new Map();
+
   snap.docs.forEach(d => {
     const t = { id: d.id, ...d.data() };
     const arr = tasksByPatient.get(t.patientId) || [];
@@ -167,11 +209,11 @@ onSnapshot(query(tasksCol, orderBy("createdAt", "desc")), (snap) => {
     tasksByPatient.set(t.patientId, arr);
   });
 
-  // Orden interno: primero las más urgentes
+  // Ordena por urgencia
   for (const [pid, arr] of tasksByPatient.entries()){
     arr.sort((a,b) => {
-      const da = toDate(a.nextDue) || new Date(0);
-      const dbb = toDate(b.nextDue) || new Date(0);
+      const da = toDate(a.nextDue) || new Date(8640000000000000);
+      const dbb = toDate(b.nextDue) || new Date(8640000000000000);
       return da - dbb;
     });
     tasksByPatient.set(pid, arr);
@@ -180,7 +222,7 @@ onSnapshot(query(tasksCol, orderBy("createdAt", "desc")), (snap) => {
   render();
 });
 
-// ====== Actions ======
+// ===== Actions
 async function markDone(taskId){
   const taskRef = doc(db, "tasks", taskId);
   const snap = await getDoc(taskRef);
@@ -197,9 +239,7 @@ async function markDone(taskId){
 }
 
 async function deletePatient(patientId){
-  // borra paciente y sus tareas
-  const pRef = doc(db, "patients", patientId);
-  await deleteDoc(pRef);
+  await deleteDoc(doc(db, "patients", patientId));
 
   const tasks = tasksByPatient.get(patientId) || [];
   for (const t of tasks){
@@ -207,110 +247,151 @@ async function deletePatient(patientId){
   }
 }
 
+// ===== Filtering logic (no frases largas, por color + chips)
 function getFilteredPatients(){
   const q = (searchBox.value || "").trim().toLowerCase();
   if (!q) return patients;
-  return patients.filter(p => (p.name || "").toLowerCase().includes(q) || (p.notes || "").toLowerCase().includes(q));
+  return patients.filter(p =>
+    (p.name || "").toLowerCase().includes(q) ||
+    (p.notes || "").toLowerCase().includes(q)
+  );
 }
 
-// ====== Render ======
-viewFilter.addEventListener("change", render);
-searchBox.addEventListener("input", render);
+function taskIncludedByView(nextDue){
+  if (viewMode === "all") return true;
+  if (!nextDue) return true;
 
-function render(){
-  const filtered = getFilteredPatients();
+  const today = new Date();
+  const diff = dayDiff(today, nextDue);
 
-  // Stats
-  let overdue = 0, dueSoon = 0, dueNow = 0, totalTasks = 0;
+  if (viewMode === "urgent") return diff <= 14; // incluye ATR, HOY, +14d
+  // viewMode === "month"
+  return isSameMonth(nextDue, cursor);
+}
 
-  filtered.forEach(p => {
+function patientIncludedByView(patientId){
+  const tasks = tasksByPatient.get(patientId) || [];
+  // un paciente “entra” si tiene al menos 1 chip en esta vista
+  return tasks.some(t => taskIncludedByView(toDate(t.nextDue)));
+}
+
+function sortTasksForDisplay(tasks){
+  // en cada paciente, primero ATR/HOY/+Xd/OK
+  return [...tasks].sort((a,b) => {
+    const sa = statusFor(toDate(a.nextDue)).sort;
+    const sb = statusFor(toDate(b.nextDue)).sort;
+    return sa - sb;
+  });
+}
+
+function computeKpis(filteredPatients){
+  const monthStart = startOfMonth(cursor);
+  const monthEnd = endOfMonth(cursor);
+
+  let totalChips = 0;
+  let overdue = 0;
+  let dueThisMonth = 0;
+  let dueSoon = 0;
+
+  const today = new Date();
+
+  filteredPatients.forEach(p => {
     const tasks = tasksByPatient.get(p.id) || [];
     tasks.forEach(t => {
       const nd = toDate(t.nextDue);
       if (!nd) return;
-      totalTasks++;
-      const diff = daysDiff(new Date(), nd);
+
+      totalChips++;
+
+      const diff = dayDiff(today, nd);
       if (diff < 0) overdue++;
-      if (diff <= 0) dueNow++;
       if (diff >= 0 && diff <= 14) dueSoon++;
+      if (nd >= monthStart && nd <= monthEnd) dueThisMonth++;
     });
   });
 
-  statsEl.innerHTML = `
-    <div class="pill"><b>${filtered.length}</b> pacientes</div>
-    <div class="pill"><b>${dueNow}</b> pendientes (hoy/antes)</div>
-    <div class="pill"><b>${overdue}</b> atrasadas</div>
-    <div class="pill"><b>${dueSoon}</b> próximas (≤14d)</div>
-  `;
+  const activePatients = filteredPatients.filter(p => patientIncludedByView(p.id)).length;
 
-  // List
-  listEl.innerHTML = "";
-
-  filtered.forEach(p => {
-    const tasks = (tasksByPatient.get(p.id) || []).filter(t => matchesView(toDate(t.nextDue)));
-    const patientNode = document.createElement("div");
-    patientNode.className = "patient";
-
-    const notes = (p.notes || "").trim();
-    patientNode.innerHTML = `
-      <div class="patientHeader">
-        <div class="patientTitle">
-          <div class="name">${escapeHtml(p.name || "Sin nombre")}</div>
-          ${notes ? `<div class="notes">${escapeHtml(notes)}</div>` : `<div class="notes">—</div>`}
-        </div>
-
-        <button class="btn small" data-del="${p.id}" title="Borrar paciente">Borrar</button>
-      </div>
-
-      <div class="tasks">
-        ${tasks.length ? tasks.map(taskRow).join("") : `<div class="hint">No hay tareas en esta vista (prueba “Ver: todo”).</div>`}
-      </div>
-    `;
-
-    listEl.appendChild(patientNode);
-  });
-
-  // Bind buttons
-  listEl.querySelectorAll("[data-done]").forEach(btn => {
-    btn.addEventListener("click", () => markDone(btn.getAttribute("data-done")));
-  });
-
-  listEl.querySelectorAll("[data-del]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-del");
-      const ok = confirm("¿Seguro que quieres borrar este paciente y sus tareas?");
-      if (ok) deletePatient(id);
-    });
-  });
+  return { activePatients, totalChips, overdue, dueThisMonth, dueSoon };
 }
 
-function taskRow(t){
-  const last = toDate(t.lastDone);
-  const next = toDate(t.nextDue);
-  const st = statusFor(next);
+// ===== Render
+searchBox.addEventListener("input", render);
 
-  return `
-    <div class="task">
-      <div class="taskLeft">
-        <div class="type">${escapeHtml(t.type || "Tarea")}</div>
-        <div class="meta">
-          Último: <b>${last ? formatDate(last) : "nunca"}</b> · Próximo: <b>${next ? formatDate(next) : "—"}</b> · Frec.: cada <b>${t.intervalMonths || "?"}</b> mes(es)
-        </div>
-      </div>
+function render(){
+  // Header month text
+  monthTitle.textContent = monthLabel(cursor);
+  monthSubtitle.textContent =
+    viewMode === "month" ? "Chips solo de este mes" :
+    viewMode === "urgent" ? "ATR / HOY / +14d" :
+    "Todas las tareas";
 
-      <div style="display:flex; gap:8px; align-items:center;">
-        <span class="badge ${st.cls}">${st.label}</span>
-        <button class="btn small primary" data-done="${t.id}">Hecho</button>
-      </div>
+  const filtered = getFilteredPatients();
+
+  // KPIs
+  const k = computeKpis(filtered);
+  kpisEl.innerHTML = `
+    <div class="kpi">
+      <div class="label">Pacientes en vista</div>
+      <div class="value">${k.activePatients}</div>
+      <div class="mini"><span class="pulse warn"></span><span>con algo visible</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Chips (total)</div>
+      <div class="value">${k.totalChips}</div>
+      <div class="mini"><span class="pulse ok"></span><span>todas las tareas</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Atrasadas</div>
+      <div class="value">${k.overdue}</div>
+      <div class="mini"><span class="pulse bad"></span><span>ATR</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Este mes</div>
+      <div class="value">${k.dueThisMonth}</div>
+      <div class="mini"><span class="pulse warn"></span><span>MES</span></div>
     </div>
   `;
-}
 
-function escapeHtml(str){
-  return String(str)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
+  // List hint
+  const viewLabel = viewMode === "month" ? "MES" : (viewMode === "urgent" ? "URGENTE" : "TODO");
+  listHint.textContent = `${viewLabel} · ${filtered.length} pacientes (buscador incluido)`;
+
+  // Build list
+  listEl.innerHTML = "";
+
+  // Filtra pacientes que tengan algo que mostrar (en month/urgent)
+  const listPatients =
+    viewMode === "all"
+      ? filtered
+      : filtered.filter(p => patientIncludedByView(p.id));
+
+  // Ordena pacientes por chip más urgente visible
+  const sortedPatients = [...listPatients].sort((a,b) => {
+    const ta = sortTasksForDisplay((tasksByPatient.get(a.id) || []).filter(t => taskIncludedByView(toDate(t.nextDue))));
+    const tb = sortTasksForDisplay((tasksByPatient.get(b.id) || []).filter(t => taskIncludedByView(toDate(t.nextDue))));
+    const sa = ta.length ? statusFor(toDate(ta[0].nextDue)).sort : 999999;
+    const sb = tb.length ? statusFor(toDate(tb[0].nextDue)).sort : 999999;
+    return sa - sb;
+  });
+
+  if (!sortedPatients.length){
+    listEl.innerHTML = `<div class="subtle">No hay pacientes con chips en esta vista.</div>`;
+    return;
+  }
+
+  sortedPatients.forEach(p => {
+    const allTasks = tasksByPatient.get(p.id) || [];
+    const visibleTasks = sortTasksForDisplay(allTasks.filter(t => taskIncludedByView(toDate(t.nextDue))));
+
+    const notes = (p.notes || "").trim();
+
+    const patientNode = document.createElement("div");
+    patientNode.className = "patient";
+    patientNode.innerHTML = `
+      <div class="patient-top">
+        <div>
+          <div class="patient-name">
+            ${escapeHtml(p.name || "Sin nombre")}
+          </div>
+          <div class="patient-not
