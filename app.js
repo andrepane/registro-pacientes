@@ -557,7 +557,7 @@ function renderSummary(){
 
   withDate.forEach(it => {
     const row = document.createElement("div");
-    row.className = "item";
+    row.className = "item summaryCard";
     if (it.kind === "CAIT") {
       const summaryEntries = it.entries.map(entry => {
         const st = statusFor(entry.due);
@@ -588,7 +588,7 @@ function renderSummary(){
             <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
             <div class="summaryMeta">${escapeHtml(it.scope)}${it.extra ? " · " + escapeHtml(it.extra) : ""}</div>
           </div>
-          <div style="display:flex; gap:10px; align-items:center;">
+          <div class="summaryDue">
             <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
             <div class="summaryTitle">${formatDMY(it.due)}</div>
           </div>
@@ -600,7 +600,7 @@ function renderSummary(){
 
   privateItems.forEach(it => {
     const row = document.createElement("div");
-    row.className = "item";
+    row.className = "item summaryCard";
     row.innerHTML = `
       <div class="summaryRow">
         <div>
@@ -620,7 +620,7 @@ function renderSummary(){
     summaryList.appendChild(divider);
     missing.forEach(it => {
       const row = document.createElement("div");
-      row.className = "item";
+      row.className = "item summaryCard";
       row.innerHTML = `
         <div class="summaryRow">
           <div>
