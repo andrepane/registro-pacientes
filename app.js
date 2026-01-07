@@ -6,6 +6,7 @@ import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/f
 // =====================
 
 const STORAGE_KEY = "cait_private_tracker_v1";
+
 const firebaseConfig = {
     apiKey: "AIzaSyBkDRJqz2YoJPzD4xlIpu_ffyMQ1LBvydo",
     authDomain: "registro-paciente-83692.firebaseapp.com",
@@ -15,6 +16,7 @@ const firebaseConfig = {
     appId: "1:191198228050:web:a07501143ac178ff3d798b"
   };
 
+main
 const FIREBASE_COLLECTION = "sharedState";
 const FIREBASE_DOC_ID = "default";
 
@@ -724,7 +726,12 @@ function saveAndRender(){
 
 function initFirebaseSync(){
   try{
-    const app = initializeApp(FIREBASE_CONFIG);
+    const config = getFirebaseConfig();
+    if (!config) {
+      console.warn("Firebase no se pudo inicializar: configuración incompleta.");
+      return;
+    }
+    const app = initializeApp(config);
     firestore = getFirestore(app);
     stateDocRef = doc(firestore, FIREBASE_COLLECTION, FIREBASE_DOC_ID);
   }catch (error){
@@ -749,6 +756,15 @@ function shouldApplyRemote(remote){
   if (!remote.lastUpdatedAt) return false;
   if (!state.lastUpdatedAt) return true;
   return new Date(remote.lastUpdatedAt).getTime() > new Date(state.lastUpdatedAt).getTime();
+}
+
+function getFirebaseConfig(){
+  const config = globalThis.FIREBASE_CONFIG ?? DEFAULT_FIREBASE_CONFIG;
+  if (!config) return null;
+  const values = Object.values(config);
+  const hasPlaceholder = values.some(value => typeof value === "string" && value.startsWith("REEMPLAZAR_"));
+  if (hasPlaceholder) return null;
+  return config;
 }
 
 // =====================
