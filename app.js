@@ -87,9 +87,10 @@ summarySearch.addEventListener("input", () => renderSummary());
 
 summaryFilterButtons.forEach(btn => {
   btn.addEventListener("click", () => {
-    summaryFilter = btn.dataset.summaryFilter;
+    const nextFilter = btn.dataset.summaryFilter;
+    summaryFilter = summaryFilter === nextFilter ? "all" : nextFilter;
     summaryFilterButtons.forEach(b => {
-      const isActive = b === btn;
+      const isActive = b.dataset.summaryFilter === summaryFilter;
       b.classList.toggle("active", isActive);
       b.setAttribute("aria-pressed", String(isActive));
     });
@@ -501,9 +502,20 @@ function renderRecoverySessionTags(recs){
 function renderSummary(){
   const query = summarySearch.value.trim().toLowerCase();
   const matchesQuery = (name) => !query || name.toLowerCase().includes(query);
-  const matchesFilter = (scope) => {
+  const today = todayYMD();
+  const isOverdue = (due) => dayDiff(today, due) < 0;
+  const isSoon = (due) => {
+    const diff = dayDiff(today, due);
+    return diff !== null && diff >= 0 && diff <= 14;
+  };
+  const matchesFilter = (item) => {
     if (summaryFilter === "all") return true;
-    return summaryFilter === "cait" ? scope === "CAIT" : scope === "Privado";
+    if (summaryFilter === "cait") return item.scope === "CAIT";
+    if (summaryFilter === "private") return item.scope === "Privado";
+    if (summaryFilter === "overdue") return item.due && isOverdue(item.due);
+    if (summaryFilter === "soon") return item.due && isSoon(item.due);
+    if (summaryFilter === "missing") return !item.due;
+    return true;
   };
 
   const items = [];
@@ -574,7 +586,6 @@ function renderSummary(){
   withDate.sort((a,b) => (a.due > b.due ? 1 : -1));
 
   // Stats
-  const today = todayYMD();
   const overdue = withDate.filter(it => dayDiff(today, it.due) < 0).length;
   const soon = withDate.filter(it => {
     const d = dayDiff(today, it.due);
@@ -599,7 +610,7 @@ function renderSummary(){
   let hasResults = false;
 
   withDate
-    .filter(it => matchesFilter(it.scope) && matchesQuery(it.patient))
+    .filter(it => matchesFilter(it) && matchesQuery(it.patient))
     .forEach(it => {
     const row = document.createElement("div");
     row.className = "item summaryCard";
@@ -645,7 +656,7 @@ function renderSummary(){
   });
 
   privateItems
-    .filter(it => matchesFilter(it.scope) && matchesQuery(it.patient))
+    .filter(it => matchesFilter(it) && matchesQuery(it.patient))
     .forEach(it => {
     const row = document.createElement("div");
     row.className = "item summaryCard";
@@ -662,7 +673,7 @@ function renderSummary(){
     hasResults = true;
   });
 
-  const missingFiltered = missing.filter(it => matchesFilter(it.scope) && matchesQuery(it.patient));
+  const missingFiltered = missing.filter(it => matchesFilter(it) && matchesQuery(it.patient));
   if (missingFiltered.length > 0){
     const divider = document.createElement("div");
     divider.className = "hint";
