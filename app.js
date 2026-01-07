@@ -757,7 +757,7 @@ function shouldApplyRemote(remote){
 }
 
 function getFirebaseConfig(){
-  const config = globalThis.FIREBASE_CONFIG ?? DEFAULT_FIREBASE_CONFIG;
+  const config = globalThis.FIREBASE_CONFIG ?? firebaseConfig;
   if (!config) return null;
   const values = Object.values(config);
   const hasPlaceholder = values.some(value => typeof value === "string" && value.startsWith("REEMPLAZAR_"));
