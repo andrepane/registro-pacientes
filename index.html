@@ -23,6 +23,14 @@
         <h2>Resumen global</h2>
         <div class="hint">Ordenado por fecha (rojo = atrasado, ámbar = pronto)</div>
       </div>
+      <div class="row summaryControls">
+        <div class="segmented" role="group" aria-label="Filtrar resumen">
+          <button class="segmentedBtn active" type="button" data-summary-filter="all" aria-pressed="true">Todo</button>
+          <button class="segmentedBtn" type="button" data-summary-filter="cait" aria-pressed="false">CAIT</button>
+          <button class="segmentedBtn" type="button" data-summary-filter="private" aria-pressed="false">Privado</button>
+        </div>
+        <input id="summarySearch" class="search" type="search" placeholder="Buscar por nombre..." aria-label="Buscar en resumen" />
+      </div>
       <div class="row actionsRow">
         <div class="hint" id="lastUpdated">Última actualización: —</div>
         <div class="actions">

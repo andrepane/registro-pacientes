@@ -34,6 +34,10 @@ const privateSearch = document.getElementById("privateSearch");
 const exportBtn = document.getElementById("exportBtn");
 const importInput = document.getElementById("importInput");
 const lastUpdated = document.getElementById("lastUpdated");
+const summarySearch = document.getElementById("summarySearch");
+const summaryFilterButtons = document.querySelectorAll("[data-summary-filter]");
+
+let summaryFilter = "all";
 
 caitForm.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -63,6 +67,19 @@ privateForm.addEventListener("submit", (e) => {
 
 caitSearch.addEventListener("input", () => renderCait());
 privateSearch.addEventListener("input", () => renderPrivate());
+summarySearch.addEventListener("input", () => renderSummary());
+
+summaryFilterButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    summaryFilter = btn.dataset.summaryFilter;
+    summaryFilterButtons.forEach(b => {
+      const isActive = b === btn;
+      b.classList.toggle("active", isActive);
+      b.setAttribute("aria-pressed", String(isActive));
+    });
+    renderSummary();
+  });
+});
 
 exportBtn.addEventListener("click", () => {
   const payload = JSON.stringify(state, null, 2);
@@ -465,6 +482,13 @@ function renderRecoverySessionTags(recs){
 }
 
 function renderSummary(){
+  const query = summarySearch.value.trim().toLowerCase();
+  const matchesQuery = (name) => !query || name.toLowerCase().includes(query);
+  const matchesFilter = (scope) => {
+    if (summaryFilter === "all") return true;
+    return summaryFilter === "cait" ? scope === "CAIT" : scope === "Privado";
+  };
+
   const items = [];
   const privateItems = [];
   const missing = [];
@@ -555,7 +579,11 @@ function renderSummary(){
     return;
   }
 
-  withDate.forEach(it => {
+  let hasResults = false;
+
+  withDate
+    .filter(it => matchesFilter(it.scope) && matchesQuery(it.patient))
+    .forEach(it => {
     const row = document.createElement("div");
     row.className = "item summaryCard";
     if (it.kind === "CAIT") {
@@ -596,9 +624,12 @@ function renderSummary(){
       `;
     }
     summaryList.appendChild(row);
+    hasResults = true;
   });
 
-  privateItems.forEach(it => {
+  privateItems
+    .filter(it => matchesFilter(it.scope) && matchesQuery(it.patient))
+    .forEach(it => {
     const row = document.createElement("div");
     row.className = "item summaryCard";
     row.innerHTML = `
@@ -611,14 +642,16 @@ function renderSummary(){
       </div>
     `;
     summaryList.appendChild(row);
+    hasResults = true;
   });
 
-  if (missing.length > 0){
+  const missingFiltered = missing.filter(it => matchesFilter(it.scope) && matchesQuery(it.patient));
+  if (missingFiltered.length > 0){
     const divider = document.createElement("div");
     divider.className = "hint";
     divider.textContent = "Pendientes de fecha";
     summaryList.appendChild(divider);
-    missing.forEach(it => {
+    missingFiltered.forEach(it => {
       const row = document.createElement("div");
       row.className = "item summaryCard";
       row.innerHTML = `
@@ -631,7 +664,12 @@ function renderSummary(){
         </div>
       `;
       summaryList.appendChild(row);
+      hasResults = true;
     });
+  }
+
+  if (!hasResults){
+    summaryList.innerHTML = `<div class="hint">Sin resultados con los filtros actuales.</div>`;
   }
 }
 
