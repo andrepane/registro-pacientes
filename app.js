@@ -6,14 +6,17 @@ import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/f
 // =====================
 
 const STORAGE_KEY = "cait_private_tracker_v1";
-const DEFAULT_FIREBASE_CONFIG = {
-  apiKey: "REEMPLAZAR_API_KEY",
-  authDomain: "REEMPLAZAR_AUTH_DOMAIN",
-  projectId: "REEMPLAZAR_PROJECT_ID",
-  storageBucket: "REEMPLAZAR_STORAGE_BUCKET",
-  messagingSenderId: "REEMPLAZAR_MESSAGING_SENDER_ID",
-  appId: "REEMPLAZAR_APP_ID"
-};
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBkDRJqz2YoJPzD4xlIpu_ffyMQ1LBvydo",
+    authDomain: "registro-paciente-83692.firebaseapp.com",
+    projectId: "registro-paciente-83692",
+    storageBucket: "registro-paciente-83692.firebasestorage.app",
+    messagingSenderId: "191198228050",
+    appId: "1:191198228050:web:a07501143ac178ff3d798b"
+  };
+
+main
 const FIREBASE_COLLECTION = "sharedState";
 const FIREBASE_DOC_ID = "default";
 
