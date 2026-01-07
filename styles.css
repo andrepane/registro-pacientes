@@ -310,7 +310,17 @@ h2{ margin:0; font-size:15px; }
 }
 .actionsRow{
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+}
+
+.summaryMetaBlock{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.summaryFilters{
+  align-items:center;
 }
 
 .badge{
