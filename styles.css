@@ -276,6 +276,24 @@ h2{ margin:0; font-size:15px; }
   font-weight:800;
   color: var(--text);
 }
+.summarySessions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+.summarySession{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(35,42,59,.9);
+  background: rgba(255,255,255,.03);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+}
 
 .notes{
   margin-top: 10px;

@@ -451,8 +451,22 @@ function renderRecoveryMiniList(recs){
     .join(" · ");
 }
 
+function renderRecoverySessionTags(recs){
+  if (!recs || recs.length === 0) return "—";
+  return recs
+    .slice()
+    .sort((a,b) => (a.date > b.date ? 1 : -1))
+    .map(r => {
+      const count = Number(r.count) || 0;
+      const countLabel = count > 1 ? ` ×${count}` : "";
+      return `<span class="summarySession">${formatDMY(r.date)}${countLabel}</span>`;
+    })
+    .join("");
+}
+
 function renderSummary(){
   const items = [];
+  const privateItems = [];
   const missing = [];
   let missingCount = 0;
 
@@ -496,17 +510,18 @@ function renderSummary(){
     }
   });
 
-  // PRIVADO items: oldest recovery date (if any) + total pending
+  // PRIVADO items: listado de fechas de sesiones (sin atrasos)
   state.private.forEach(p => {
     const oldest = getOldestRecoveryDate(p.recoveries);
     const totalPending = p.recoveries.reduce((sum, r) => sum + (Number(r.count)||0), 0);
     if (totalPending > 0) {
-      items.push({
+      privateItems.push({
         patient: p.name,
         scope: "Privado",
         kind: "RECUP",
         due: oldest,
-        extra: `${totalPending} pend.`
+        extra: `${totalPending} pend.`,
+        recoveries: p.recoveries
       });
     }
   });
@@ -535,7 +550,7 @@ function renderSummary(){
 
   // List
   summaryList.innerHTML = "";
-  if (withDate.length === 0 && missing.length === 0){
+  if (withDate.length === 0 && missing.length === 0 && privateItems.length === 0){
     summaryList.innerHTML = `<div class="hint">Aún no hay fechas suficientes para generar resumen.</div>`;
     return;
   }
@@ -580,6 +595,21 @@ function renderSummary(){
         </div>
       `;
     }
+    summaryList.appendChild(row);
+  });
+
+  privateItems.forEach(it => {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `
+      <div class="summaryRow">
+        <div>
+          <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
+          <div class="summaryMeta">${escapeHtml(it.scope)}${it.extra ? " · " + escapeHtml(it.extra) : ""}</div>
+        </div>
+        <div class="summarySessions">${renderRecoverySessionTags(it.recoveries)}</div>
+      </div>
+    `;
     summaryList.appendChild(row);
   });
 
