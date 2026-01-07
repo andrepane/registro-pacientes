@@ -9,10 +9,10 @@
 <body>
   <header class="topbar">
     <h1>Control pacientes</h1>
-    <nav class="tabs" aria-label="Secciones">
-      <button class="tab active" data-view="summary" type="button">Resumen</button>
-      <button class="tab" data-view="cait" type="button">CAIT</button>
-      <button class="tab" data-view="private" type="button">Privado</button>
+    <nav class="tabs" aria-label="Secciones" role="tablist">
+      <button class="tab active" data-view="summary" type="button" role="tab" aria-selected="true">Resumen</button>
+      <button class="tab" data-view="cait" type="button" role="tab" aria-selected="false">CAIT</button>
+      <button class="tab" data-view="private" type="button" role="tab" aria-selected="false">Privado</button>
     </nav>
   </header>
 
@@ -22,6 +22,16 @@
       <div class="row">
         <h2>Resumen global</h2>
         <div class="hint">Ordenado por fecha (rojo = atrasado, ámbar = pronto)</div>
+      </div>
+      <div class="row actionsRow">
+        <div class="hint" id="lastUpdated">Última actualización: —</div>
+        <div class="actions">
+          <button class="btn small" id="exportBtn" type="button">Exportar</button>
+          <label class="btn small fileBtn">
+            Importar
+            <input id="importInput" type="file" accept="application/json" />
+          </label>
+        </div>
       </div>
       <div id="summaryStats" class="stats"></div>
       <div id="summaryList" class="list"></div>
@@ -33,8 +43,11 @@
         <h2>Pacientes CAIT</h2>
       </div>
 
+      <div class="row" style="margin-top:10px;">
+        <input id="caitSearch" class="search" type="search" placeholder="Buscar..." aria-label="Buscar paciente CAIT" />
+      </div>
       <form id="caitForm" class="form">
-        <input id="caitName" type="text" placeholder="Nombre / código" required />
+        <input id="caitName" type="text" placeholder="Nombre / código" required minlength="2" />
         <button class="btn primary" type="submit">Añadir</button>
       </form>
 
@@ -47,8 +60,11 @@
         <h2>Pacientes Privado</h2>
       </div>
 
+      <div class="row" style="margin-top:10px;">
+        <input id="privateSearch" class="search" type="search" placeholder="Buscar..." aria-label="Buscar paciente Privado" />
+      </div>
       <form id="privateForm" class="form">
-        <input id="privateName" type="text" placeholder="Nombre / código" required />
+        <input id="privateName" type="text" placeholder="Nombre / código" required minlength="2" />
         <button class="btn primary" type="submit">Añadir</button>
       </form>
 

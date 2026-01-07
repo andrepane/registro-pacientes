@@ -12,7 +12,11 @@ const sections = document.querySelectorAll("[data-section]");
 
 tabs.forEach(btn => {
   btn.addEventListener("click", () => {
-    tabs.forEach(b => b.classList.toggle("active", b === btn));
+    tabs.forEach(b => {
+      const isActive = b === btn;
+      b.classList.toggle("active", isActive);
+      b.setAttribute("aria-selected", String(isActive));
+    });
     const view = btn.dataset.view;
     sections.forEach(sec => sec.classList.toggle("hidden", sec.dataset.section !== view));
     render();
@@ -22,13 +26,23 @@ tabs.forEach(btn => {
 // Forms
 const caitForm = document.getElementById("caitForm");
 const caitName = document.getElementById("caitName");
+const caitSearch = document.getElementById("caitSearch");
 const privateForm = document.getElementById("privateForm");
 const privateName = document.getElementById("privateName");
+const privateSearch = document.getElementById("privateSearch");
+
+const exportBtn = document.getElementById("exportBtn");
+const importInput = document.getElementById("importInput");
+const lastUpdated = document.getElementById("lastUpdated");
 
 caitForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const name = caitName.value.trim();
-  if (!name) return;
+  const name = normalizeName(caitName.value);
+  if (!isValidName(name)) return;
+  if (hasDuplicate(name, "cait")) {
+    alert("Este paciente ya existe en CAIT.");
+    return;
+  }
   state.cait.push(makeCaitPatient(name));
   caitName.value = "";
   saveAndRender();
@@ -36,11 +50,52 @@ caitForm.addEventListener("submit", (e) => {
 
 privateForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const name = privateName.value.trim();
-  if (!name) return;
+  const name = normalizeName(privateName.value);
+  if (!isValidName(name)) return;
+  if (hasDuplicate(name, "private")) {
+    alert("Este paciente ya existe en Privado.");
+    return;
+  }
   state.private.push(makePrivatePatient(name));
   privateName.value = "";
   saveAndRender();
+});
+
+caitSearch.addEventListener("input", () => renderCait());
+privateSearch.addEventListener("input", () => renderPrivate());
+
+exportBtn.addEventListener("click", () => {
+  const payload = JSON.stringify(state, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `pacientes-backup-${todayYMD()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+importInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      const next = hydrateState(parsed);
+      state.cait = next.cait;
+      state.private = next.private;
+      state.lastUpdatedAt = next.lastUpdatedAt;
+      saveAndRender();
+    }catch{
+      alert("El archivo no es válido.");
+    }finally{
+      importInput.value = "";
+    }
+  };
+  reader.readAsText(file);
 });
 
 // Render targets
@@ -63,6 +118,7 @@ function makeCaitPatient(name){
   return {
     id: makeId(),
     name,
+    notes: "",
     // Dates stored as yyyy-mm-dd string or null
     lastPIAT: null,
     lastENT: null,
@@ -74,6 +130,7 @@ function makePrivatePatient(name){
   return {
     id: makeId(),
     name,
+    notes: "",
     // recoveries: array of {date: yyyy-mm-dd, count:number}
     recoveries: []
   };
@@ -145,17 +202,23 @@ function render(){
   renderCait();
   renderPrivate();
   renderSummary();
+  renderLastUpdated();
 }
 
 function renderCait(){
   caitList.innerHTML = "";
 
-  if (state.cait.length === 0){
+  const query = caitSearch.value.trim().toLowerCase();
+  const list = query
+    ? state.cait.filter(p => p.name.toLowerCase().includes(query))
+    : state.cait;
+
+  if (list.length === 0){
     caitList.innerHTML = `<div class="hint">No hay pacientes CAIT aún.</div>`;
     return;
   }
 
-  state.cait.forEach(p => {
+  list.forEach(p => {
     const nextPIAT = p.lastPIAT ? addMonths(p.lastPIAT, 6) : null;
     const nextENT  = p.lastENT ? addMonths(p.lastENT, 1) : null;
     const nextFAM  = p.lastFAM ? addMonths(p.lastFAM, 3) : null;
@@ -172,13 +235,23 @@ function renderCait(){
           <div class="name">${escapeHtml(p.name)}</div>
           <div class="sub">CAIT</div>
         </div>
-        <button class="btn small" data-del-cait="${p.id}" type="button">Borrar</button>
+        <div class="actions">
+          <button class="btn small" data-edit-name data-scope="cait" data-id="${p.id}" type="button">Editar</button>
+          <button class="btn small" data-del-cait="${p.id}" type="button">Borrar</button>
+        </div>
       </div>
 
       <div class="grid3">
         ${caitBox("PIAT", p.lastPIAT, nextPIAT, stPIAT, "piat", p.id)}
         ${caitBox("ENT",  p.lastENT,  nextENT,  stENT,  "ent",  p.id)}
         ${caitBox("FAM",  p.lastFAM,  nextFAM,  stFAM,  "fam",  p.id)}
+      </div>
+      <div class="notes">
+        <label class="sub" for="notes-cait-${p.id}">Notas</label>
+        <textarea id="notes-cait-${p.id}" rows="2" placeholder="Añade notas rápidas...">${escapeHtml(p.notes || "")}</textarea>
+        <div class="actions">
+          <button class="btn small primary" data-save-notes data-scope="cait" data-id="${p.id}" type="button">Guardar nota</button>
+        </div>
       </div>
     `;
     caitList.appendChild(el);
@@ -209,6 +282,9 @@ function renderCait(){
       saveAndRender();
     });
   });
+
+  bindNameEdits(caitList);
+  bindNotesSave(caitList, "cait");
 }
 
 function caitBox(code, last, next, st, kind, id){
@@ -233,12 +309,17 @@ function caitBox(code, last, next, st, kind, id){
 function renderPrivate(){
   privateList.innerHTML = "";
 
-  if (state.private.length === 0){
+  const query = privateSearch.value.trim().toLowerCase();
+  const list = query
+    ? state.private.filter(p => p.name.toLowerCase().includes(query))
+    : state.private;
+
+  if (list.length === 0){
     privateList.innerHTML = `<div class="hint">No hay pacientes Privado aún.</div>`;
     return;
   }
 
-  state.private.forEach(p => {
+  list.forEach(p => {
     const totalPending = p.recoveries.reduce((sum, r) => sum + (Number(r.count)||0), 0);
     const oldest = getOldestRecoveryDate(p.recoveries);
     const st = statusFor(oldest); // si la fecha más antigua ya pasó, rojo
@@ -251,7 +332,10 @@ function renderPrivate(){
           <div class="name">${escapeHtml(p.name)}</div>
           <div class="sub">Privado</div>
         </div>
-        <button class="btn small" data-del-priv="${p.id}" type="button">Borrar</button>
+        <div class="actions">
+          <button class="btn small" data-edit-name data-scope="private" data-id="${p.id}" type="button">Editar</button>
+          <button class="btn small" data-del-priv="${p.id}" type="button">Borrar</button>
+        </div>
       </div>
 
       <div class="grid3">
@@ -277,7 +361,11 @@ function renderPrivate(){
 
         <div class="box">
           <b>NOTA</b>
-          <div class="sub">Este bloque es simple a propósito. Si quieres notas por paciente, lo añado.</div>
+          <label class="sub" for="notes-private-${p.id}">Notas</label>
+          <textarea id="notes-private-${p.id}" rows="4" placeholder="Notas por paciente...">${escapeHtml(p.notes || "")}</textarea>
+          <div class="actions">
+            <button class="btn small primary" data-save-notes data-scope="private" data-id="${p.id}" type="button">Guardar nota</button>
+          </div>
         </div>
 
         <div class="box">
@@ -320,6 +408,9 @@ function renderPrivate(){
       // sort by date asc
       p.recoveries.sort((a,b) => (a.date > b.date ? 1 : -1));
 
+      document.getElementById(`rec-date-${id}`).value = "";
+      document.getElementById(`rec-count-${id}`).value = "";
+
       saveAndRender();
     });
   });
@@ -330,6 +421,7 @@ function renderPrivate(){
       const id = btn.getAttribute("data-subrec");
       const p = state.private.find(x => x.id === id);
       if (!p || p.recoveries.length === 0) return;
+      if (!confirm("¿Marcar una sesión como recuperada?")) return;
 
       // oldest first
       p.recoveries.sort((a,b) => (a.date > b.date ? 1 : -1));
@@ -339,6 +431,9 @@ function renderPrivate(){
       saveAndRender();
     });
   });
+
+  bindNameEdits(privateList);
+  bindNotesSave(privateList, "private");
 }
 
 function getOldestRecoveryDate(recs){
@@ -358,6 +453,7 @@ function renderRecoveryMiniList(recs){
 
 function renderSummary(){
   const items = [];
+  const missing = [];
 
   // CAIT items: next due for PIAT/ENT/FAM
   state.cait.forEach(p => {
@@ -365,9 +461,13 @@ function renderSummary(){
     const nextENT  = p.lastENT ? addMonths(p.lastENT, 1) : null;
     const nextFAM  = p.lastFAM ? addMonths(p.lastFAM, 3) : null;
 
-    items.push(makeSummaryItem(p.name, "CAIT", "PIAT", nextPIAT));
-    items.push(makeSummaryItem(p.name, "CAIT", "ENT",  nextENT));
-    items.push(makeSummaryItem(p.name, "CAIT", "FAM",  nextFAM));
+    const piat = makeSummaryItem(p.name, "CAIT", "PIAT", nextPIAT);
+    const ent = makeSummaryItem(p.name, "CAIT", "ENT", nextENT);
+    const fam = makeSummaryItem(p.name, "CAIT", "FAM", nextFAM);
+    items.push(piat, ent, fam);
+    [piat, ent, fam].forEach(it => {
+      if (!it.due) missing.push({ ...it, extra: "Sin fecha" });
+    });
   });
 
   // PRIVADO items: oldest recovery date (if any) + total pending
@@ -404,11 +504,12 @@ function renderSummary(){
     <div class="pill"><b>${state.private.length}</b> Privado</div>
     <div class="pill"><b>${overdue}</b> atrasadas</div>
     <div class="pill"><b>${soon}</b> próximas (≤14d)</div>
+    <div class="pill"><b>${missing.length}</b> sin fecha</div>
   `;
 
   // List
   summaryList.innerHTML = "";
-  if (withDate.length === 0){
+  if (withDate.length === 0 && missing.length === 0){
     summaryList.innerHTML = `<div class="hint">Aún no hay fechas suficientes para generar resumen.</div>`;
     return;
   }
@@ -431,6 +532,27 @@ function renderSummary(){
     `;
     summaryList.appendChild(row);
   });
+
+  if (missing.length > 0){
+    const divider = document.createElement("div");
+    divider.className = "hint";
+    divider.textContent = "Pendientes de fecha";
+    summaryList.appendChild(divider);
+    missing.forEach(it => {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `
+        <div class="summaryRow">
+          <div>
+            <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
+            <div class="summaryMeta">${escapeHtml(it.scope)} · ${escapeHtml(it.extra)}</div>
+          </div>
+          <div class="summaryTitle">—</div>
+        </div>
+      `;
+      summaryList.appendChild(row);
+    });
+  }
 }
 
 function makeSummaryItem(patientName, scope, kind, due){
@@ -443,18 +565,16 @@ function makeSummaryItem(patientName, scope, kind, due){
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { cait: [], private: [] };
+    if (!raw) return { cait: [], private: [], lastUpdatedAt: null };
     const parsed = JSON.parse(raw);
-    return {
-      cait: Array.isArray(parsed.cait) ? parsed.cait : [],
-      private: Array.isArray(parsed.private) ? parsed.private : []
-    };
+    return hydrateState(parsed);
   }catch{
-    return { cait: [], private: [] };
+    return { cait: [], private: [], lastUpdatedAt: null };
   }
 }
 
 function saveState(){
+  state.lastUpdatedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -473,4 +593,90 @@ function escapeHtml(str){
     .replaceAll(">","&gt;")
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
+}
+
+function normalizeName(value){
+  return String(value ?? "").trim();
+}
+
+function isValidName(name){
+  return name.length >= 2;
+}
+
+function hasDuplicate(name, scope){
+  const list = scope === "cait" ? state.cait : state.private;
+  return list.some(p => p.name.toLowerCase() === name.toLowerCase());
+}
+
+function bindNameEdits(container){
+  container.querySelectorAll("[data-edit-name]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      const scope = btn.getAttribute("data-scope");
+      const list = scope === "cait" ? state.cait : state.private;
+      const p = list.find(x => x.id === id);
+      if (!p) return;
+      const next = prompt("Nuevo nombre/código:", p.name);
+      if (!next) return;
+      const name = normalizeName(next);
+      if (!isValidName(name)) return;
+      if (list.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())){
+        alert("Ya existe un paciente con ese nombre.");
+        return;
+      }
+      p.name = name;
+      saveAndRender();
+    });
+  });
+}
+
+function bindNotesSave(container, scope){
+  container.querySelectorAll("[data-save-notes]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      const list = scope === "cait" ? state.cait : state.private;
+      const p = list.find(x => x.id === id);
+      if (!p) return;
+      const input = document.getElementById(`notes-${scope}-${id}`);
+      p.notes = input ? input.value.trim() : "";
+      saveAndRender();
+    });
+  });
+}
+
+function renderLastUpdated(){
+  if (!lastUpdated) return;
+  if (!state.lastUpdatedAt){
+    lastUpdated.textContent = "Última actualización: —";
+    return;
+  }
+  const d = new Date(state.lastUpdatedAt);
+  const dd = String(d.getDate()).padStart(2,"0");
+  const mm = String(d.getMonth() + 1).padStart(2,"0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,"0");
+  const mi = String(d.getMinutes()).padStart(2,"0");
+  lastUpdated.textContent = `Última actualización: ${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+}
+
+function hydrateState(parsed){
+  const cait = Array.isArray(parsed.cait) ? parsed.cait : [];
+  const priv = Array.isArray(parsed.private) ? parsed.private : [];
+  return {
+    cait: cait.map(p => ({
+      id: p.id ?? makeId(),
+      name: String(p.name ?? ""),
+      notes: String(p.notes ?? ""),
+      lastPIAT: p.lastPIAT ?? null,
+      lastENT: p.lastENT ?? null,
+      lastFAM: p.lastFAM ?? null
+    })),
+    private: priv.map(p => ({
+      id: p.id ?? makeId(),
+      name: String(p.name ?? ""),
+      notes: String(p.notes ?? ""),
+      recoveries: Array.isArray(p.recoveries) ? p.recoveries : []
+    })),
+    lastUpdatedAt: parsed.lastUpdatedAt ?? null
+  };
 }
