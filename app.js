@@ -454,6 +454,7 @@ function renderRecoveryMiniList(recs){
 function renderSummary(){
   const items = [];
   const missing = [];
+  let missingCount = 0;
 
   // CAIT items: next due for PIAT/ENT/FAM
   state.cait.forEach(p => {
@@ -461,13 +462,38 @@ function renderSummary(){
     const nextENT  = p.lastENT ? addMonths(p.lastENT, 1) : null;
     const nextFAM  = p.lastFAM ? addMonths(p.lastFAM, 3) : null;
 
-    const piat = makeSummaryItem(p.name, "CAIT", "PIAT", nextPIAT);
-    const ent = makeSummaryItem(p.name, "CAIT", "ENT", nextENT);
-    const fam = makeSummaryItem(p.name, "CAIT", "FAM", nextFAM);
-    items.push(piat, ent, fam);
-    [piat, ent, fam].forEach(it => {
-      if (!it.due) missing.push({ ...it, extra: "Sin fecha" });
+    const entries = [
+      { label: "ENT", due: nextENT },
+      { label: "PIAT", due: nextPIAT },
+      { label: "FAM", due: nextFAM }
+    ];
+    const dueDates = entries.map(entry => entry.due).filter(Boolean).sort((a,b) => (a > b ? 1 : -1));
+    const hasAnyDue = dueDates.length > 0;
+
+    entries.forEach(entry => {
+      if (!entry.due) {
+        missingCount += 1;
+        if (!hasAnyDue) {
+          missing.push({
+            patient: p.name,
+            scope: "CAIT",
+            kind: entry.label,
+            due: null,
+            extra: "Sin fecha"
+          });
+        }
+      }
     });
+
+    if (hasAnyDue) {
+      items.push({
+        patient: p.name,
+        scope: "CAIT",
+        kind: "CAIT",
+        due: dueDates[0],
+        entries
+      });
+    }
   });
 
   // PRIVADO items: oldest recovery date (if any) + total pending
@@ -504,7 +530,7 @@ function renderSummary(){
     <div class="pill"><b>${state.private.length}</b> Privado</div>
     <div class="pill"><b>${overdue}</b> atrasadas</div>
     <div class="pill"><b>${soon}</b> próximas (≤14d)</div>
-    <div class="pill"><b>${missing.length}</b> sin fecha</div>
+    <div class="pill"><b>${missingCount}</b> sin fecha</div>
   `;
 
   // List
@@ -515,21 +541,45 @@ function renderSummary(){
   }
 
   withDate.forEach(it => {
-    const st = statusFor(it.due);
     const row = document.createElement("div");
     row.className = "item";
-    row.innerHTML = `
-      <div class="summaryRow">
-        <div>
-          <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
-          <div class="summaryMeta">${escapeHtml(it.scope)}${it.extra ? " · " + escapeHtml(it.extra) : ""}</div>
+    if (it.kind === "CAIT") {
+      const summaryEntries = it.entries.map(entry => {
+        const st = statusFor(entry.due);
+        return `
+          <div class="summaryMini">
+            <span class="summaryMiniLabel">${entry.label}</span>
+            <span class="summaryMiniDate">${formatDMY(entry.due)}</span>
+            <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
+          </div>
+        `;
+      }).join("");
+      row.innerHTML = `
+        <div class="summaryRow">
+          <div>
+            <div class="summaryTitle">${escapeHtml(it.patient)}</div>
+            <div class="summaryMeta">${escapeHtml(it.scope)}</div>
+          </div>
+          <div class="summaryCaitGroup">
+            ${summaryEntries}
+          </div>
         </div>
-        <div style="display:flex; gap:10px; align-items:center;">
-          <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
-          <div class="summaryTitle">${formatDMY(it.due)}</div>
+      `;
+    } else {
+      const st = statusFor(it.due);
+      row.innerHTML = `
+        <div class="summaryRow">
+          <div>
+            <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
+            <div class="summaryMeta">${escapeHtml(it.scope)}${it.extra ? " · " + escapeHtml(it.extra) : ""}</div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
+            <div class="summaryTitle">${formatDMY(it.due)}</div>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
     summaryList.appendChild(row);
   });
 
