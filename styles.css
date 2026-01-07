@@ -83,7 +83,8 @@ h2{ margin:0; font-size:15px; }
   gap:10px;
   margin-top: 10px;
 }
-.form input{
+.form input,
+.search{
   flex:1;
   padding: 10px 12px;
   border-radius: 12px;
@@ -91,6 +92,10 @@ h2{ margin:0; font-size:15px; }
   background: rgba(0,0,0,.25);
   color: var(--text);
   outline:none;
+}
+.search{
+  width:100%;
+  margin-top: 6px;
 }
 
 .btn{
@@ -110,6 +115,16 @@ h2{ margin:0; font-size:15px; }
   padding: 8px 10px;
   border-radius: 11px;
   font-size: 13px;
+}
+.btn.fileBtn{
+  position: relative;
+  overflow: hidden;
+}
+.btn.fileBtn input{
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .list{
@@ -167,6 +182,18 @@ h2{ margin:0; font-size:15px; }
   outline:none;
   margin-top: 6px;
 }
+.box textarea,
+.notes textarea{
+  width:100%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(35,42,59,.9);
+  background: rgba(0,0,0,.22);
+  color: var(--text);
+  outline:none;
+  margin-top: 6px;
+  resize: vertical;
+}
 
 .actions{
   margin-top: 10px;
@@ -174,6 +201,10 @@ h2{ margin:0; font-size:15px; }
   gap:8px;
   flex-wrap:wrap;
   align-items:center;
+}
+.actionsRow{
+  justify-content: space-between;
+  align-items: center;
 }
 
 .badge{
@@ -222,6 +253,10 @@ h2{ margin:0; font-size:15px; }
 .summaryMeta{
   color: var(--muted);
   font-size: 12px;
+}
+
+.notes{
+  margin-top: 10px;
 }
 
 .footer{
