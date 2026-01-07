@@ -1,10 +1,25 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 // =====================
-// Simple CAIT/Privado tracker (localStorage)
+// Simple CAIT/Privado tracker (localStorage + Firebase)
 // =====================
 
 const STORAGE_KEY = "cait_private_tracker_v1";
+const FIREBASE_CONFIG = {
+  apiKey: "REEMPLAZAR_API_KEY",
+  authDomain: "REEMPLAZAR_AUTH_DOMAIN",
+  projectId: "REEMPLAZAR_PROJECT_ID",
+  storageBucket: "REEMPLAZAR_STORAGE_BUCKET",
+  messagingSenderId: "REEMPLAZAR_MESSAGING_SENDER_ID",
+  appId: "REEMPLAZAR_APP_ID"
+};
+const FIREBASE_COLLECTION = "sharedState";
+const FIREBASE_DOC_ID = "default";
 
-const state = loadState();
+let state = loadLocalState();
+let firestore = null;
+let stateDocRef = null;
 
 // Tabs
 const tabs = document.querySelectorAll(".tab");
@@ -123,6 +138,7 @@ const summaryList = document.getElementById("summaryList");
 
 // Initial render
 render();
+initFirebaseSync();
 
 // =====================
 // Data model
@@ -680,7 +696,7 @@ function makeSummaryItem(patientName, scope, kind, due){
 // =====================
 // Storage
 // =====================
-function loadState(){
+function loadLocalState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { cait: [], private: [], lastUpdatedAt: null };
@@ -694,11 +710,44 @@ function loadState(){
 function saveState(){
   state.lastUpdatedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (stateDocRef){
+    return setDoc(stateDocRef, state);
+  }
+  return Promise.resolve();
 }
 
 function saveAndRender(){
   saveState();
   render();
+}
+
+function initFirebaseSync(){
+  try{
+    const app = initializeApp(FIREBASE_CONFIG);
+    firestore = getFirestore(app);
+    stateDocRef = doc(firestore, FIREBASE_COLLECTION, FIREBASE_DOC_ID);
+  }catch (error){
+    console.warn("Firebase no se pudo inicializar.", error);
+    return;
+  }
+
+  onSnapshot(stateDocRef, (snapshot) => {
+    if (!snapshot.exists()) return;
+    const remote = hydrateState(snapshot.data());
+    if (shouldApplyRemote(remote)) {
+      state = remote;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      render();
+    }
+  }, (error) => {
+    console.warn("Error al sincronizar con Firebase.", error);
+  });
+}
+
+function shouldApplyRemote(remote){
+  if (!remote.lastUpdatedAt) return false;
+  if (!state.lastUpdatedAt) return true;
+  return new Date(remote.lastUpdatedAt).getTime() > new Date(state.lastUpdatedAt).getTime();
 }
 
 // =====================
