@@ -1,336 +1,65 @@
-<!DOCTYPE html>
-<html class="dark" lang="es"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Dashboard Principal de Pacientes - Logopedia</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="style.css" rel="stylesheet"/>
-<script src="script.js"></script>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Control pacientes (CAIT / Privado)</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased overflow-hidden">
-<div class="flex h-screen w-full overflow-hidden">
-<div class="hidden md:flex w-72 flex-col bg-[#111318] border-r border-[#292e38]">
-<div class="flex flex-col h-full p-4">
-<div class="flex items-center gap-3 mb-8 px-2">
-<div class="bg-primary/20 p-2 rounded-lg">
-<span class="material-symbols-outlined text-primary" style="font-size: 28px;">graphic_eq</span>
-</div>
-<div class="flex flex-col">
-<h1 class="text-white text-base font-bold leading-none">Logopedia App</h1>
-<p class="text-[#9da6b8] text-xs font-normal mt-1">Gestión Clínica</p>
-</div>
-</div>
-<nav class="flex flex-col gap-2 flex-1">
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white group transition-colors" href="#">
-<span class="material-symbols-outlined text-white" style="font-size: 20px;">dashboard</span>
-<span class="text-sm font-medium">Dashboard</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#9da6b8] hover:bg-[#292e38] hover:text-white transition-colors group" href="#">
-<span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">groups</span>
-<span class="text-sm font-medium">Pacientes</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#9da6b8] hover:bg-[#292e38] hover:text-white transition-colors group" href="#">
-<span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">calendar_month</span>
-<span class="text-sm font-medium">Calendario</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#9da6b8] hover:bg-[#292e38] hover:text-white transition-colors group" href="#">
-<span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">finance</span>
-<span class="text-sm font-medium">Facturación</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#9da6b8] hover:bg-[#292e38] hover:text-white transition-colors group" href="#">
-<span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">settings</span>
-<span class="text-sm font-medium">Configuración</span>
-</a>
-</nav>
-<div class="mt-auto pt-4 border-t border-[#292e38]">
-<div class="flex items-center gap-3 px-2">
-<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-9 border border-[#292e38]" data-alt="Portrait of the current user" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCFJtI2O1nzXzAKuifOaT-UpbaIXuMnUQBR9pSLMGXvQ_ymWrk3nBAUXL9s73pIrElxmIKQu7xclBpWPFEyHLQN83cSxZN8Kmm6DVJGb4Fa2tw3j7JpjiLo-jDIPvryJslXB8oOqrCtf6aeg8P6ZcdWuv5P4T255eI_nFzNZ7URiDRU0Hy0LoT_aKbi8WY3nA9ZDhr4FJX_80Oht6N7Gq_Qh1hzq4oeQZxDh08-DzCcS5Z2tQbghkv0p6A8HBxhZeIHP-EC2tj7KX1G");'></div>
-<div class="flex flex-col overflow-hidden">
-<p class="text-white text-sm font-medium truncate">Dra. Clara M.</p>
-<p class="text-[#9da6b8] text-xs truncate">Logopeda Senior</p>
-</div>
-</div>
-</div>
-</div>
-</div>
-<main class="flex-1 flex flex-col h-full overflow-hidden relative">
-<div class="md:hidden flex items-center justify-between p-4 bg-[#111318] border-b border-[#292e38]">
-<div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-primary">graphic_eq</span>
-<span class="font-bold text-white">Logopedia</span>
-</div>
-<button class="text-white" id="mobile-menu-toggle" type="button" aria-controls="mobile-menu" aria-expanded="false">
-<span class="material-symbols-outlined">menu</span>
-</button>
-</div>
-<div class="fixed inset-0 bg-black/60 z-20 hidden md:hidden" id="mobile-menu-backdrop"></div>
-<div class="fixed inset-y-0 left-0 w-72 bg-[#111318] border-r border-[#292e38] z-30 translate-x-[-100%] transition-transform duration-300 md:hidden" id="mobile-menu" aria-hidden="true">
-<div class="flex flex-col h-full p-4">
-<div class="flex items-center justify-between mb-8">
-<div class="flex items-center gap-3 px-2">
-<div class="bg-primary/20 p-2 rounded-lg">
-<span class="material-symbols-outlined text-primary" style="font-size: 28px;">graphic_eq</span>
-</div>
-<div class="flex flex-col">
-<h1 class="text-white text-base font-bold leading-none">Logopedia App</h1>
-<p class="text-[#9da6b8] text-xs font-normal mt-1">Gestión Clínica</p>
-</div>
-</div>
-<button class="text-[#9da6b8] hover:text-white transition-colors" id="mobile-menu-close" type="button" aria-label="Cerrar menú">
-<span class="material-symbols-outlined">close</span>
-</button>
-</div>
-<nav class="flex flex-col gap-2 flex-1">
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white group transition-colors" href="#">
-<span class="material-symbols-outlined text-white" style="font-size: 20px;">dashboard</span>
-<span class="text-sm font-medium">Dashboard</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#9da6b8] hover:bg-[#292e38] hover:text-white transition-colors group" href="#">
-<span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">groups</span>
-<span class="text-sm font-medium">Pacientes</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#9da6b8] hover:bg-[#292e38] hover:text-white transition-colors group" href="#">
-<span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">calendar_month</span>
-<span class="text-sm font-medium">Calendario</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#9da6b8] hover:bg-[#292e38] hover:text-white transition-colors group" href="#">
-<span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">finance</span>
-<span class="text-sm font-medium">Facturación</span>
-</a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#9da6b8] hover:bg-[#292e38] hover:text-white transition-colors group" href="#">
-<span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">settings</span>
-<span class="text-sm font-medium">Configuración</span>
-</a>
-</nav>
-</div>
-</div>
-<div class="flex-1 overflow-y-auto overflow-x-hidden p-6 md:p-10">
-<div class="max-w-7xl mx-auto flex flex-col gap-8">
-<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-<div>
-<h2 class="text-white text-3xl font-bold tracking-tight">Tareas clave del mes</h2>
-<p class="text-[#9da6b8] text-base mt-1">Escanea pacientes con acción pendiente sin leer frases largas.</p>
-</div>
-<button class="bg-primary hover:bg-primary/90 text-white text-sm font-semibold py-2.5 px-5 rounded-lg shadow-lg shadow-blue-900/20 flex items-center gap-2 transition-all" id="new-patient-button" type="button">
-<span class="material-symbols-outlined" style="font-size: 20px;">add</span>
-                        Nuevo Paciente
-                    </button>
-</div>
-<div class="bg-surface-dark rounded-xl border border-[#292e38] p-5 flex flex-col lg:flex-row gap-6 lg:items-center lg:justify-between">
-<div class="flex items-center gap-4">
-<div class="flex items-center justify-center size-12 rounded-full bg-[#111318] border border-[#292e38]">
-<span class="material-symbols-outlined text-primary">bolt</span>
-</div>
-<div>
-<p class="text-[#9da6b8] text-xs uppercase tracking-[0.2em] font-semibold">Este mes</p>
-<p class="text-white text-2xl font-bold" id="patient-count">12 pacientes con acción</p>
-</div>
-</div>
-<div class="flex flex-wrap items-center gap-3">
-<span class="text-[#9da6b8] text-xs font-semibold uppercase tracking-widest">Estado</span>
-<span class="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full bg-red-500/10 text-red-300 border border-red-500/30">
-<span class="size-2 rounded-full bg-red-500"></span>Atraso
-                        </span>
-<span class="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30">
-<span class="size-2 rounded-full bg-amber-500"></span>Este mes
-                        </span>
-<span class="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-<span class="size-2 rounded-full bg-emerald-500"></span>Al día
-                        </span>
-</div>
-<div class="flex flex-wrap items-center gap-3">
-<span class="text-[#9da6b8] text-xs font-semibold uppercase tracking-widest">Clave</span>
-<span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#111318] border border-[#292e38] text-white">PIAT</span>
-<span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#111318] border border-[#292e38] text-white">FAM</span>
-<span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-[#111318] border border-[#292e38] text-white">ENT</span>
-</div>
-</div>
-<div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-<div class="w-full lg:w-80 relative">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#9da6b8]" style="font-size: 20px;">search</span>
-<input class="w-full bg-[#111318] border border-[#292e38] text-white text-sm rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-[#5c6475] transition-all shadow-inner" id="patient-search" placeholder="Buscar paciente..." type="text"/>
-</div>
-<div class="flex flex-wrap gap-2">
-<button class="px-3 py-1.5 rounded-lg border border-[#3c4453] bg-[#292e38] text-white text-xs font-semibold shadow-sm transition-all" data-filter="all" type="button">Todos</button>
-<button class="px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 text-xs font-semibold shadow-sm transition-all" data-filter="atraso" type="button">Atraso</button>
-<button class="px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-semibold shadow-sm transition-all" data-filter="este-mes" type="button">Este mes</button>
-<button class="px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs font-semibold shadow-sm transition-all" data-filter="al-dia" type="button">Al día</button>
-</div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="patient-grid">
-<article class="bg-surface-dark border border-[#292e38] rounded-xl p-5 flex flex-col gap-4" data-status="atraso">
-<div class="flex items-start justify-between">
-<div class="flex items-center gap-3">
-<div class="size-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">LG</div>
-<div>
-<p class="text-white text-base font-semibold">Lucía Gómez</p>
-<p class="text-[#9da6b8] text-xs">#8492 · CAIT</p>
-</div>
-</div>
-<button class="text-[#9da6b8] hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#292e38] hover:border-emerald-500/50 hover:text-emerald-300 transition-colors" data-action="toggle-done" type="button">Hecho</button>
-</div>
-<div class="flex flex-wrap gap-2">
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-red-500/10 text-red-300 border border-red-500/30">
-<span class="size-2 rounded-full bg-red-500"></span>PIAT
-                        </span>
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30">
-<span class="size-2 rounded-full bg-amber-500"></span>FAM
-                        </span>
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-<span class="size-2 rounded-full bg-emerald-500"></span>ENT
-                        </span>
-</div>
-<p class="text-[#9da6b8] text-xs">Dos tareas vencidas y una al día.</p>
-</article>
-<article class="bg-surface-dark border border-[#292e38] rounded-xl p-5 flex flex-col gap-4" data-status="este-mes">
-<div class="flex items-start justify-between">
-<div class="flex items-center gap-3">
-<div class="size-10 rounded-full bg-center bg-cover" data-alt="Portrait of Marcos Ruiz" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAVk_ULfJaY2SdB_LbU7cD4Btv4ihO2OZ65rA-QowMSA2oE1Tzhp1C0FvEnXY8eiNqQP410lIAd5GM6ppQ9wRB0jxkxiaZEBkVevXTYtHV_mnn58lfPETmcm5VWaNH0XT5wRaWDelO2YQbH5HdnER9VWXMsBdNFTDicxK-y8bsE4J0T_Ij5d1UD6iFdHZ7FR0UywzkKk03CB5FoQFhTB7XFdDRyANQj1YsvPoUjSeSG_lnOipetEUIgWc_MXV1VdOrpov7aa1pyQVfP");'></div>
-<div>
-<p class="text-white text-base font-semibold">Marcos Ruíz</p>
-<p class="text-[#9da6b8] text-xs">#9201 · Privado</p>
-</div>
-</div>
-<button class="text-[#9da6b8] hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#292e38] hover:border-emerald-500/50 hover:text-emerald-300 transition-colors" data-action="toggle-done" type="button">Hecho</button>
-</div>
-<div class="flex flex-wrap gap-2">
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30">
-<span class="size-2 rounded-full bg-amber-500"></span>PIAT
-                        </span>
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30">
-<span class="size-2 rounded-full bg-amber-500"></span>FAM
-                        </span>
-</div>
-<p class="text-[#9da6b8] text-xs">Todo programado este mes.</p>
-</article>
-<article class="bg-surface-dark border border-[#292e38] rounded-xl p-5 flex flex-col gap-4" data-status="al-dia">
-<div class="flex items-start justify-between">
-<div class="flex items-center gap-3">
-<div class="size-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">EN</div>
-<div>
-<p class="text-white text-base font-semibold">Elena Núñez</p>
-<p class="text-[#9da6b8] text-xs">#3382 · CAIT</p>
-</div>
-</div>
-<button class="text-[#9da6b8] hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#292e38] hover:border-emerald-500/50 hover:text-emerald-300 transition-colors" data-action="toggle-done" type="button">Hecho</button>
-</div>
-<div class="flex flex-wrap gap-2">
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-<span class="size-2 rounded-full bg-emerald-500"></span>PIAT
-                        </span>
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30">
-<span class="size-2 rounded-full bg-amber-500"></span>ENT
-                        </span>
-</div>
-<p class="text-[#9da6b8] text-xs">Solo una tarea prevista.</p>
-</article>
-<article class="bg-surface-dark border border-[#292e38] rounded-xl p-5 flex flex-col gap-4" data-status="al-dia">
-<div class="flex items-start justify-between">
-<div class="flex items-center gap-3">
-<div class="size-10 rounded-full bg-center bg-cover" data-alt="Portrait of Javier Pastor" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDYQ1eEyvoYBhGcyFRrHlz1wff_TxsNbRC42RifcdPjk8AaOyuc_dz3lzVZQYbHGGc7nJXV9LJMomB60f5b0DZBsE5I8ZLYIZlgS4VgIxbJoQzQeg-3tt7rZvCKNSMB9d-9m36F3mWCwAiAsA2Njk6e0vQNG0XxbMw1_aqcIh2J70t_vIfwshnRRj1u-Dnd8NDva4b3zgD6VsL2B2cAYy7XLXoiT-FQsdqOkLfLdHAbSj9owrsT9Ea73B4qwvlxz3Di4aAsR_e7noNz");'></div>
-<div>
-<p class="text-white text-base font-semibold">Javier Pastor</p>
-<p class="text-[#9da6b8] text-xs">#1104 · Privado</p>
-</div>
-</div>
-<button class="text-[#9da6b8] hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#292e38] hover:border-emerald-500/50 hover:text-emerald-300 transition-colors" data-action="toggle-done" type="button">Hecho</button>
-</div>
-<div class="flex flex-wrap gap-2">
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-<span class="size-2 rounded-full bg-emerald-500"></span>FAM
-                        </span>
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-<span class="size-2 rounded-full bg-emerald-500"></span>ENT
-                        </span>
-</div>
-<p class="text-[#9da6b8] text-xs">Todo al día.</p>
-</article>
-<article class="bg-surface-dark border border-[#292e38] rounded-xl p-5 flex flex-col gap-4" data-status="atraso">
-<div class="flex items-start justify-between">
-<div class="flex items-center gap-3">
-<div class="size-10 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white font-bold text-sm">AS</div>
-<div>
-<p class="text-white text-base font-semibold">Ana Sánchez</p>
-<p class="text-[#9da6b8] text-xs">#5521 · CAIT</p>
-</div>
-</div>
-<button class="text-[#9da6b8] hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#292e38] hover:border-emerald-500/50 hover:text-emerald-300 transition-colors" data-action="toggle-done" type="button">Hecho</button>
-</div>
-<div class="flex flex-wrap gap-2">
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30">
-<span class="size-2 rounded-full bg-amber-500"></span>PIAT
-                        </span>
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-red-500/10 text-red-300 border border-red-500/30">
-<span class="size-2 rounded-full bg-red-500"></span>FAM
-                        </span>
-</div>
-<p class="text-[#9da6b8] text-xs">Una tarea vencida.</p>
-</article>
-<article class="bg-surface-dark border border-[#292e38] rounded-xl p-5 flex flex-col gap-4" data-status="atraso">
-<div class="flex items-start justify-between">
-<div class="flex items-center gap-3">
-<div class="size-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-sm">CM</div>
-<div>
-<p class="text-white text-base font-semibold">Celia Martín</p>
-<p class="text-[#9da6b8] text-xs">#2045 · CAIT</p>
-</div>
-</div>
-<button class="text-[#9da6b8] hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#292e38] hover:border-emerald-500/50 hover:text-emerald-300 transition-colors" data-action="toggle-done" type="button">Hecho</button>
-</div>
-<div class="flex flex-wrap gap-2">
-<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md bg-red-500/10 text-red-300 border border-red-500/30">
-<span class="size-2 rounded-full bg-red-500"></span>ENT
-                        </span>
-</div>
-<p class="text-[#9da6b8] text-xs">Revisión de entorno vencida.</p>
-</article>
-</div>
-<div class="hidden text-center text-sm text-[#9da6b8] py-10" id="empty-state">No hay pacientes que coincidan con tu búsqueda.</div>
-</div>
-</div>
-</main>
-</div>
-<div class="fixed inset-0 z-40 hidden items-center justify-center bg-black/60 px-4" id="new-patient-modal" role="dialog" aria-modal="true" aria-hidden="true">
-<div class="bg-[#111318] border border-[#292e38] rounded-xl w-full max-w-lg p-6 shadow-xl">
-<div class="flex items-center justify-between mb-4">
-<h3 class="text-white text-lg font-semibold">Nuevo paciente</h3>
-<button class="text-[#9da6b8] hover:text-white transition-colors" id="new-patient-close" type="button" aria-label="Cerrar formulario">
-<span class="material-symbols-outlined">close</span>
-</button>
-</div>
-<form class="space-y-4" id="new-patient-form">
-<div>
-<label class="text-xs uppercase tracking-widest text-[#9da6b8] font-semibold" for="patient-name">Nombre completo</label>
-<input class="mt-2 w-full bg-[#0f131b] border border-[#292e38] text-white text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-[#5c6475]" id="patient-name" placeholder="Ej: Valeria Torres" required type="text"/>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-<div>
-<label class="text-xs uppercase tracking-widest text-[#9da6b8] font-semibold" for="patient-id">Código</label>
-<input class="mt-2 w-full bg-[#0f131b] border border-[#292e38] text-white text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-[#5c6475]" id="patient-id" placeholder="#0000" required type="text"/>
-</div>
-<div>
-<label class="text-xs uppercase tracking-widest text-[#9da6b8] font-semibold" for="patient-type">Tipo</label>
-<select class="mt-2 w-full bg-[#0f131b] border border-[#292e38] text-white text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" id="patient-type" required>
-<option value="CAIT">CAIT</option>
-<option value="Privado">Privado</option>
-</select>
-</div>
-</div>
-<div>
-<label class="text-xs uppercase tracking-widest text-[#9da6b8] font-semibold" for="patient-status">Estado principal</label>
-<select class="mt-2 w-full bg-[#0f131b] border border-[#292e38] text-white text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" id="patient-status" required>
-<option value="atraso">Atraso</option>
-<option value="este-mes">Este mes</option>
-<option value="al-dia">Al día</option>
-</select>
-</div>
-<div class="flex items-center justify-end gap-3 pt-2">
-<button class="text-sm font-semibold text-[#9da6b8] hover:text-white" id="new-patient-cancel" type="button">Cancelar</button>
-<button class="bg-primary hover:bg-primary/90 text-white text-sm font-semibold py-2 px-4 rounded-lg" type="submit">Guardar</button>
-</div>
-</form>
-</div>
-</div>
-</body></html>
+<body>
+  <header class="topbar">
+    <h1>Control pacientes</h1>
+    <nav class="tabs" aria-label="Secciones">
+      <button class="tab active" data-view="summary" type="button">Resumen</button>
+      <button class="tab" data-view="cait" type="button">CAIT</button>
+      <button class="tab" data-view="private" type="button">Privado</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <!-- RESUMEN -->
+    <section class="card" data-section="summary">
+      <div class="row">
+        <h2>Resumen global</h2>
+        <div class="hint">Ordenado por fecha (rojo = atrasado, ámbar = pronto)</div>
+      </div>
+      <div id="summaryStats" class="stats"></div>
+      <div id="summaryList" class="list"></div>
+    </section>
+
+    <!-- CAIT -->
+    <section class="card hidden" data-section="cait">
+      <div class="row">
+        <h2>Pacientes CAIT</h2>
+      </div>
+
+      <form id="caitForm" class="form">
+        <input id="caitName" type="text" placeholder="Nombre / código" required />
+        <button class="btn primary" type="submit">Añadir</button>
+      </form>
+
+      <div id="caitList" class="list"></div>
+    </section>
+
+    <!-- PRIVADO -->
+    <section class="card hidden" data-section="private">
+      <div class="row">
+        <h2>Pacientes Privado</h2>
+      </div>
+
+      <form id="privateForm" class="form">
+        <input id="privateName" type="text" placeholder="Nombre / código" required />
+        <button class="btn primary" type="submit">Añadir</button>
+      </form>
+
+      <div id="privateList" class="list"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Datos guardados en este dispositivo (localStorage).</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
