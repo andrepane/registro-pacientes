@@ -15,8 +15,6 @@ const firebaseConfig = {
     messagingSenderId: "191198228050",
     appId: "1:191198228050:web:a07501143ac178ff3d798b"
   };
-
-main
 const FIREBASE_COLLECTION = "sharedState";
 const FIREBASE_DOC_ID = "default";
 
