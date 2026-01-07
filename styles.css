@@ -1,21 +1,20 @@
 :root{
-  --bg:#f6f8fb;
+  --bg:#fbfaf8;
   --card:#ffffff;
-  --text:#0b1220;
-  --muted:#5b6b83;
-  --border:#e6ebf2;
+  --text:#141414;
+  --muted:#6b7280;
+  --border:#ece7df;
 
-  --accent:#1f6feb;              /* azul limpio */
-  --accent-soft:rgba(31,111,235,.14);
+  --accent:#0f766e;              /* teal */
+  --accent-soft:rgba(15,118,110,.14);
 
-  --shadow: 0 18px 45px rgba(11,18,32,.08);
-  --shadow-strong: 0 14px 30px rgba(11,18,32,.12);
+  --shadow: 0 18px 45px rgba(20,20,20,.08);
+  --shadow-strong: 0 14px 30px rgba(20,20,20,.12);
 
-  --ok:#16a34a;                  /* verde menos fosforito */
-  --warn:#d97706;                /* ámbar más elegante */
-  --bad:#dc2626;                 /* rojo serio */
+  --ok:#0f766e;                  /* ok = teal (coherente) */
+  --warn:#b45309;                /* cobre */
+  --bad:#b91c1c;                 /* granate */
 }
-
 
 *{ box-sizing:border-box; }
 body{
