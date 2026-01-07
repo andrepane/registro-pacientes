@@ -168,6 +168,11 @@ h2{ margin:0; font-size:15px; }
   gap:10px;
 }
 
+.summaryList{
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: start;
+}
+
 .item{
   border: 1px solid rgba(35,42,59,.9);
   background: rgba(0,0,0,.18);
@@ -179,6 +184,54 @@ h2{ margin:0; font-size:15px; }
 .item:hover{
   border-color: rgba(79,70,229,.45);
   transform: translateY(-1px);
+}
+
+.summaryCard{
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120px 80px at 10% 0%, rgba(79,70,229,.18), transparent 70%),
+    rgba(9,12,20,.6);
+  border-color: rgba(79,70,229,.35);
+  min-height: 140px;
+}
+.summaryCard::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.06);
+  pointer-events:none;
+}
+.summaryCard .summaryRow{
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.summaryCard .summaryTitle{
+  font-size: 15px;
+}
+.summaryCard .summaryMeta{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(35,42,59,.8);
+  background: rgba(255,255,255,.04);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.summaryCard .summaryCaitGroup,
+.summaryCard .summarySessions{
+  width: 100%;
+  justify-content: flex-start;
+}
+.summaryDue{
+  display:flex;
+  gap:10px;
+  align-items:center;
 }
 
 .itemHead{
