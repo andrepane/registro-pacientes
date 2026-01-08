@@ -52,8 +52,10 @@ const importInput = document.getElementById("importInput");
 const lastUpdated = document.getElementById("lastUpdated");
 const summarySearch = document.getElementById("summarySearch");
 const summaryFilterButtons = document.querySelectorAll("[data-summary-filter]");
+const summarySubFilterButtons = document.querySelectorAll("[data-summary-subfilter]");
 
 let summaryFilter = "all";
+let summarySubFilter = "all";
 
 caitForm.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -91,6 +93,18 @@ summaryFilterButtons.forEach(btn => {
     summaryFilter = summaryFilter === nextFilter ? "all" : nextFilter;
     summaryFilterButtons.forEach(b => {
       const isActive = b.dataset.summaryFilter === summaryFilter;
+      b.classList.toggle("active", isActive);
+      b.setAttribute("aria-pressed", String(isActive));
+    });
+    renderSummary();
+  });
+});
+
+summarySubFilterButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    summarySubFilter = btn.dataset.summarySubfilter;
+    summarySubFilterButtons.forEach(b => {
+      const isActive = b.dataset.summarySubfilter === summarySubFilter;
       b.classList.toggle("active", isActive);
       b.setAttribute("aria-pressed", String(isActive));
     });
@@ -595,6 +609,20 @@ function renderRecoverySessionTags(recs){
     .join("");
 }
 
+function renderSummarySection({ key, title, count, cardsHtml }){
+  if (!cardsHtml || !cardsHtml.trim()) return "";
+  return `
+    <div class="summarySection" data-summary-section="${key}">
+      <div class="summarySectionHeader">
+        <h3>${title}</h3>
+        <span class="countPill">${count}</span>
+      </div>
+      <div class="summarySectionDivider"></div>
+      ${cardsHtml}
+    </div>
+  `;
+}
+
 function renderSummary(){
   const query = summarySearch.value.trim().toLowerCase();
   const matchesQuery = (name) => !query || name.toLowerCase().includes(query);
@@ -727,7 +755,6 @@ function renderSummary(){
     return;
   }
 
-  let hasResults = false;
   const showThisMonthOnly = summaryFilter === "thismonth";
   const showMonthSections = ["all", "cait", "private", "thismonth"].includes(summaryFilter);
   const showDateSections = !showThisMonthOnly;
@@ -738,28 +765,24 @@ function renderSummary(){
     return true;
   };
 
+  const sections = {};
+  const orderedKeys = ["attention", "ok", "privateDebt", "byDate", "missing"];
+
   if (showMonthSections) {
     const filteredAttention = caitMonthAttention.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
     const filteredOk = caitMonthOk.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
     const filteredDebt = privateDebt.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
 
-    if (filteredAttention.length > 0) {
-      const divider = document.createElement("div");
-      divider.className = "hint";
-      divider.textContent = "Atención este mes (CAIT)";
-      summaryList.appendChild(divider);
+    const attentionCards = filteredAttention.map(it => {
+      const missingText = it.monthTodo.missingKinds.length
+        ? `Falta fecha: ${it.monthTodo.missingKinds.join(", ")}`
+        : "";
+      const monthBadgeText = missingText
+        ? `${missingText} · ${it.monthTodo.summaryText}`
+        : it.monthTodo.summaryText;
 
-      filteredAttention.forEach(it => {
-        const missingText = it.monthTodo.missingKinds.length
-          ? `Falta fecha: ${it.monthTodo.missingKinds.join(", ")}`
-          : "";
-        const monthBadgeText = missingText
-          ? `${missingText} · ${it.monthTodo.summaryText}`
-          : it.monthTodo.summaryText;
-
-        const row = document.createElement("div");
-        row.className = "item summaryCard";
-        row.innerHTML = `
+      return `
+        <div class="item summaryCard">
           <div class="summaryRow">
             <div>
               <div class="summaryTitle">${escapeHtml(it.patient)}</div>
@@ -773,22 +796,20 @@ function renderSummary(){
               </div>
             </div>
           </div>
-        `;
-        summaryList.appendChild(row);
-        hasResults = true;
-      });
-    }
+        </div>
+      `;
+    }).join("");
 
-    if (filteredOk.length > 0 && !showThisMonthOnly) {
-      const divider = document.createElement("div");
-      divider.className = "hint";
-      divider.textContent = `Todo al día (CAIT) · ${filteredOk.length}`;
-      summaryList.appendChild(divider);
+    sections.attention = renderSummarySection({
+      key: "attention",
+      title: "Atención este mes (CAIT)",
+      count: filteredAttention.length,
+      cardsHtml: attentionCards
+    });
 
-      filteredOk.slice(0, 10).forEach(it => {
-        const row = document.createElement("div");
-        row.className = "item summaryCard";
-        row.innerHTML = `
+    if (!showThisMonthOnly) {
+      const okCards = filteredOk.slice(0, 10).map(it => `
+        <div class="item summaryCard">
           <div class="summaryRow">
             <div>
               <div class="summaryTitle">${escapeHtml(it.patient)}</div>
@@ -802,61 +823,50 @@ function renderSummary(){
               </div>
             </div>
           </div>
-        `;
-        summaryList.appendChild(row);
-        hasResults = true;
+        </div>
+      `).join("");
+      const okNotice = filteredOk.length > 10
+        ? `<div class="hint">Mostrando 10 de ${filteredOk.length}. Usa búsqueda para ver más.</div>`
+        : "";
+      sections.ok = renderSummarySection({
+        key: "ok",
+        title: "Todo al día (CAIT)",
+        count: filteredOk.length,
+        cardsHtml: `${okCards}${okNotice}`
       });
-      if (filteredOk.length > 10) {
-        const more = document.createElement("div");
-        more.className = "hint";
-        more.textContent = `Mostrando 10 de ${filteredOk.length}. Usa búsqueda para ver más.`;
-        summaryList.appendChild(more);
-      }
     }
 
-    if (filteredDebt.length > 0) {
-      const divider = document.createElement("div");
-      divider.className = "hint";
-      divider.textContent = "Privados con deuda";
-      summaryList.appendChild(divider);
-
-      filteredDebt.forEach(it => {
-        const row = document.createElement("div");
-        row.className = "item summaryCard";
-        row.innerHTML = `
-          <div class="summaryRow">
-            <div>
-              <div class="summaryTitle">${escapeHtml(it.patient)} · RECUP</div>
-              <div class="summaryMeta">${escapeHtml(it.scope)} · ${it.totalPending} pend.</div>
-            </div>
-            <div class="summaryCaitGroup">
-              <div class="summaryMini">
-                <span class="summaryMiniLabel">Pendientes</span>
-                <span class="summaryMiniDate">${it.totalPending}</span>
-                <span class="badge"><span class="dot warn"></span>Deuda</span>
-              </div>
+    const debtCards = filteredDebt.map(it => `
+      <div class="item summaryCard">
+        <div class="summaryRow">
+          <div>
+            <div class="summaryTitle">${escapeHtml(it.patient)} · RECUP</div>
+            <div class="summaryMeta">${escapeHtml(it.scope)} · ${it.totalPending} pend.</div>
+          </div>
+          <div class="summaryCaitGroup">
+            <div class="summaryMini">
+              <span class="summaryMiniLabel">Pendientes</span>
+              <span class="summaryMiniDate">${it.totalPending}</span>
+              <span class="badge"><span class="dot warn"></span>Deuda</span>
             </div>
           </div>
-        `;
-        summaryList.appendChild(row);
-        hasResults = true;
-      });
-    }
+        </div>
+      </div>
+    `).join("");
+
+    sections.privateDebt = renderSummarySection({
+      key: "privateDebt",
+      title: "Privados con deuda",
+      count: filteredDebt.length,
+      cardsHtml: debtCards
+    });
   }
 
   if (showDateSections) {
-    if (withDate.length > 0 || privateItems.length > 0 || missing.length > 0) {
-      const divider = document.createElement("div");
-      divider.className = "hint";
-      divider.textContent = "Por fecha";
-      summaryList.appendChild(divider);
-    }
+    const dateItems = withDate.filter(it => matchesFilter(it) && matchesQuery(it.patient));
+    const privateDateItems = privateItems.filter(it => matchesFilter(it) && matchesQuery(it.patient));
 
-    withDate
-      .filter(it => matchesFilter(it) && matchesQuery(it.patient))
-      .forEach(it => {
-      const row = document.createElement("div");
-      row.className = "item summaryCard";
+    const dateCards = dateItems.map(it => {
       if (it.kind === "CAIT") {
         const summaryEntries = it.entries.map(entry => {
           const st = statusFor(entry.due);
@@ -868,20 +878,23 @@ function renderSummary(){
             </div>
           `;
         }).join("");
-        row.innerHTML = `
-          <div class="summaryRow">
-            <div>
-              <div class="summaryTitle">${escapeHtml(it.patient)}</div>
-              <div class="summaryMeta">${escapeHtml(it.scope)}</div>
-            </div>
-            <div class="summaryCaitGroup">
-              ${summaryEntries}
+        return `
+          <div class="item summaryCard">
+            <div class="summaryRow">
+              <div>
+                <div class="summaryTitle">${escapeHtml(it.patient)}</div>
+                <div class="summaryMeta">${escapeHtml(it.scope)}</div>
+              </div>
+              <div class="summaryCaitGroup">
+                ${summaryEntries}
+              </div>
             </div>
           </div>
         `;
-      } else {
-        const st = statusFor(it.due);
-        row.innerHTML = `
+      }
+      const st = statusFor(it.due);
+      return `
+        <div class="item summaryCard">
           <div class="summaryRow">
             <div>
               <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
@@ -892,18 +905,12 @@ function renderSummary(){
               <div class="summaryTitle">${formatDMY(it.due)}</div>
             </div>
           </div>
-        `;
-      }
-      summaryList.appendChild(row);
-      hasResults = true;
-    });
+        </div>
+      `;
+    }).join("");
 
-    privateItems
-      .filter(it => matchesFilter(it) && matchesQuery(it.patient))
-      .forEach(it => {
-      const row = document.createElement("div");
-      row.className = "item summaryCard";
-      row.innerHTML = `
+    const privateDateCards = privateDateItems.map(it => `
+      <div class="item summaryCard">
         <div class="summaryRow">
           <div>
             <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
@@ -911,38 +918,46 @@ function renderSummary(){
           </div>
           <div class="summarySessions">${renderRecoverySessionTags(it.recoveries)}</div>
         </div>
-      `;
-      summaryList.appendChild(row);
-      hasResults = true;
+      </div>
+    `).join("");
+
+    sections.byDate = renderSummarySection({
+      key: "byDate",
+      title: "Por fechas",
+      count: dateItems.length + privateDateItems.length,
+      cardsHtml: `${dateCards}${privateDateCards}`
     });
 
     const missingFiltered = missing.filter(it => matchesFilter(it) && matchesQuery(it.patient));
-    if (missingFiltered.length > 0){
-      const divider = document.createElement("div");
-      divider.className = "hint";
-      divider.textContent = "Pendientes de fecha";
-      summaryList.appendChild(divider);
-      missingFiltered.forEach(it => {
-        const row = document.createElement("div");
-        row.className = "item summaryCard";
-        row.innerHTML = `
-          <div class="summaryRow">
-            <div>
-              <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
-              <div class="summaryMeta">${escapeHtml(it.scope)} · ${escapeHtml(it.extra)}</div>
-            </div>
-            <div class="summaryTitle">—</div>
+    const missingCards = missingFiltered.map(it => `
+      <div class="item summaryCard">
+        <div class="summaryRow">
+          <div>
+            <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
+            <div class="summaryMeta">${escapeHtml(it.scope)} · ${escapeHtml(it.extra)}</div>
           </div>
-        `;
-        summaryList.appendChild(row);
-        hasResults = true;
-      });
-    }
+          <div class="summaryTitle">—</div>
+        </div>
+      </div>
+    `).join("");
+
+    sections.missing = renderSummarySection({
+      key: "missing",
+      title: "Pendientes de fecha",
+      count: missingFiltered.length,
+      cardsHtml: missingCards
+    });
   }
 
-  if (!hasResults){
+  const keysToRender = summarySubFilter === "all" ? orderedKeys : [summarySubFilter];
+  const renderedSections = keysToRender.map(key => sections[key]).filter(Boolean).join("");
+
+  if (!renderedSections.trim()){
     summaryList.innerHTML = `<div class="hint">Sin resultados con los filtros actuales.</div>`;
+    return;
   }
+
+  summaryList.innerHTML = renderedSections;
 }
 
 function makeSummaryItem(patientName, scope, kind, due){
