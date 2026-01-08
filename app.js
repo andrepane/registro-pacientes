@@ -628,6 +628,7 @@ function renderSummary(){
   const matchesQuery = (name) => !query || name.toLowerCase().includes(query);
   const today = todayYMD();
   const monthKey = getMonthKey(new Date());
+  const kindPriority = ["PIAT", "ENT", "FAM"];
   const isOverdue = (due) => dayDiff(today, due) < 0;
   const isSoon = (due) => {
     const diff = dayDiff(today, due);
@@ -728,8 +729,28 @@ function renderSummary(){
   // Keep only items with a due date, because "sin fecha" no sirve para resumen global.
   const withDate = items.filter(it => !!it.due);
 
-  // Sort by due date asc
-  withDate.sort((a,b) => (a.due > b.due ? 1 : -1));
+  const getPriorityEntry = (entries) => {
+    for (const kind of kindPriority) {
+      const entry = entries.find(it => it.label === kind && it.due);
+      if (entry) {
+        return {
+          kind,
+          due: entry.due,
+          index: kindPriority.indexOf(kind)
+        };
+      }
+    }
+    return { kind: null, due: null, index: kindPriority.length };
+  };
+
+  // Sort by kind priority, then due date asc
+  withDate.sort((a,b) => {
+    const aPriority = getPriorityEntry(a.entries || []);
+    const bPriority = getPriorityEntry(b.entries || []);
+    if (aPriority.index !== bPriority.index) return aPriority.index - bPriority.index;
+    if (aPriority.due !== bPriority.due) return aPriority.due > bPriority.due ? 1 : -1;
+    return a.patient.localeCompare(b.patient);
+  });
 
   // Stats
   const overdue = withDate.filter(it => dayDiff(today, it.due) < 0).length;
@@ -928,7 +949,14 @@ function renderSummary(){
       cardsHtml: `${dateCards}${privateDateCards}`
     });
 
-    const missingFiltered = missing.filter(it => matchesFilter(it) && matchesQuery(it.patient));
+    const missingFiltered = missing
+      .filter(it => matchesFilter(it) && matchesQuery(it.patient))
+      .sort((a,b) => {
+        const aIndex = kindPriority.indexOf(a.kind);
+        const bIndex = kindPriority.indexOf(b.kind);
+        if (aIndex !== bIndex) return aIndex - bIndex;
+        return a.patient.localeCompare(b.patient);
+      });
     const missingCards = missingFiltered.map(it => `
       <div class="item summaryCard">
         <div class="summaryRow">
