@@ -295,6 +295,55 @@ function getCaitMonthTodo(patient, monthKey){
   };
 }
 
+function getCaitPriorityFromKind(kind){
+  if (kind === "PIAT") return 1;
+  if (kind === "ENT") return 2;
+  if (kind === "FAM") return 3;
+  return 4;
+}
+
+function getCaitLastByKind(patient, kind){
+  if (kind === "PIAT") return patient.lastPIAT;
+  if (kind === "ENT") return patient.lastENT;
+  if (kind === "FAM") return patient.lastFAM;
+  return null;
+}
+
+function getOldestCaitLastDate(patient){
+  const dates = [patient.lastPIAT, patient.lastENT, patient.lastFAM].filter(Boolean);
+  if (dates.length === 0) return null;
+  return dates.sort((a,b) => (a > b ? 1 : -1))[0];
+}
+
+function getCaitPriorityInfo(patient, monthKey){
+  const monthTodo = getCaitMonthTodo(patient, monthKey);
+  if (monthTodo.dueKinds.includes("PIAT")) {
+    return { priority: 1, last: patient.lastPIAT };
+  }
+  if (monthTodo.dueKinds.includes("ENT")) {
+    return { priority: 2, last: patient.lastENT };
+  }
+  if (monthTodo.dueKinds.includes("FAM")) {
+    return { priority: 3, last: patient.lastFAM };
+  }
+  return { priority: 4, last: getOldestCaitLastDate(patient) };
+}
+
+function getDateSortValue(ymd){
+  if (!ymd) return -Infinity;
+  const d = parseYMD(ymd);
+  if (!d) return -Infinity;
+  return d.getTime();
+}
+
+function comparePriorityRecords(a, b){
+  if (a.priority !== b.priority) return a.priority - b.priority;
+  const aDate = getDateSortValue(a.last);
+  const bDate = getDateSortValue(b.last);
+  if (aDate !== bDate) return aDate - bDate;
+  return String(a.name).localeCompare(String(b.name), "es", { sensitivity: "base" });
+}
+
 function getPrivatePending(patient){
   return patient.recoveries.reduce((sum, r) => sum + (Number(r.count)||0), 0);
 }
@@ -323,7 +372,16 @@ function renderCait(){
     return;
   }
 
-  list.forEach(p => {
+  const ordered = list.slice().sort((a,b) => {
+    const aInfo = getCaitPriorityInfo(a, monthKey);
+    const bInfo = getCaitPriorityInfo(b, monthKey);
+    return comparePriorityRecords(
+      { priority: aInfo.priority, last: aInfo.last, name: a.name },
+      { priority: bInfo.priority, last: bInfo.last, name: b.name }
+    );
+  });
+
+  ordered.forEach(p => {
     const nextPIAT = p.lastPIAT ? addMonths(p.lastPIAT, 6) : null;
     const nextENT  = p.lastENT ? addMonths(p.lastENT, 1) : null;
     const nextFAM  = p.lastFAM ? addMonths(p.lastFAM, 3) : null;
@@ -674,7 +732,8 @@ function renderSummary(){
           scope: "CAIT",
           kind: entry.label,
           due: null,
-          extra: "Sin fecha"
+          extra: "Sin fecha",
+          source: p
         });
       }
     });
@@ -685,7 +744,8 @@ function renderSummary(){
         scope: "CAIT",
         kind: "CAIT",
         due: dueDates[0],
-        entries
+        entries,
+        source: p
       });
     }
 
@@ -694,7 +754,8 @@ function renderSummary(){
       patient: p.name,
       scope: "CAIT",
       monthTodo,
-      entries
+      entries,
+      source: p
     };
     if (monthTodo.ok) caitMonthOk.push(monthEntry);
     else caitMonthAttention.push(monthEntry);
@@ -728,8 +789,15 @@ function renderSummary(){
   // Keep only items with a due date, because "sin fecha" no sirve para resumen global.
   const withDate = items.filter(it => !!it.due);
 
-  // Sort by due date asc
-  withDate.sort((a,b) => (a.due > b.due ? 1 : -1));
+  // Sort by clinical priority then oldest last intervention
+  withDate.sort((a,b) => {
+    const aInfo = getCaitPriorityInfo(a.source, monthKey);
+    const bInfo = getCaitPriorityInfo(b.source, monthKey);
+    return comparePriorityRecords(
+      { priority: aInfo.priority, last: aInfo.last, name: a.patient },
+      { priority: bInfo.priority, last: bInfo.last, name: b.patient }
+    );
+  });
 
   // Stats
   const overdue = withDate.filter(it => dayDiff(today, it.due) < 0).length;
@@ -769,8 +837,26 @@ function renderSummary(){
   const orderedKeys = ["attention", "ok", "privateDebt", "byDate", "missing"];
 
   if (showMonthSections) {
-    const filteredAttention = caitMonthAttention.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
-    const filteredOk = caitMonthOk.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
+    const filteredAttention = caitMonthAttention
+      .filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope))
+      .sort((a,b) => {
+        const aInfo = getCaitPriorityInfo(a.source, monthKey);
+        const bInfo = getCaitPriorityInfo(b.source, monthKey);
+        return comparePriorityRecords(
+          { priority: aInfo.priority, last: aInfo.last, name: a.patient },
+          { priority: bInfo.priority, last: bInfo.last, name: b.patient }
+        );
+      });
+    const filteredOk = caitMonthOk
+      .filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope))
+      .sort((a,b) => {
+        const aInfo = getCaitPriorityInfo(a.source, monthKey);
+        const bInfo = getCaitPriorityInfo(b.source, monthKey);
+        return comparePriorityRecords(
+          { priority: aInfo.priority, last: aInfo.last, name: a.patient },
+          { priority: bInfo.priority, last: bInfo.last, name: b.patient }
+        );
+      });
     const filteredDebt = privateDebt.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
 
     const attentionCards = filteredAttention.map(it => {
@@ -863,7 +949,9 @@ function renderSummary(){
   }
 
   if (showDateSections) {
-    const dateItems = withDate.filter(it => matchesFilter(it) && matchesQuery(it.patient));
+    const dateItems = withDate
+      .filter(it => matchesFilter(it) && matchesQuery(it.patient))
+      .slice();
     const privateDateItems = privateItems.filter(it => matchesFilter(it) && matchesQuery(it.patient));
 
     const dateCards = dateItems.map(it => {
@@ -928,7 +1016,16 @@ function renderSummary(){
       cardsHtml: `${dateCards}${privateDateCards}`
     });
 
-    const missingFiltered = missing.filter(it => matchesFilter(it) && matchesQuery(it.patient));
+    const missingFiltered = missing
+      .filter(it => matchesFilter(it) && matchesQuery(it.patient))
+      .sort((a,b) => {
+        const aPriority = getCaitPriorityFromKind(a.kind);
+        const bPriority = getCaitPriorityFromKind(b.kind);
+        return comparePriorityRecords(
+          { priority: aPriority, last: getCaitLastByKind(a.source, a.kind), name: a.patient },
+          { priority: bPriority, last: getCaitLastByKind(b.source, b.kind), name: b.patient }
+        );
+      });
     const missingCards = missingFiltered.map(it => `
       <div class="item summaryCard">
         <div class="summaryRow">
