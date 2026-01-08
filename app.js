@@ -53,6 +53,7 @@ const lastUpdated = document.getElementById("lastUpdated");
 const summarySearch = document.getElementById("summarySearch");
 const summaryFilterButtons = document.querySelectorAll("[data-summary-filter]");
 const summarySubFilterButtons = document.querySelectorAll("[data-summary-subfilter]");
+const summarySubFiltersGroup = document.querySelector(".summarySubFilters");
 
 let summaryFilter = "all";
 let summarySubFilter = "all";
@@ -96,6 +97,7 @@ summaryFilterButtons.forEach(btn => {
       b.classList.toggle("active", isActive);
       b.setAttribute("aria-pressed", String(isActive));
     });
+    updateSummarySubFilters();
     renderSummary();
   });
 });
@@ -111,6 +113,40 @@ summarySubFilterButtons.forEach(btn => {
     renderSummary();
   });
 });
+
+function updateSummarySubFilters(){
+  if (!summarySubFiltersGroup) return;
+  const allowedByFilter = {
+    all: [],
+    thismonth: ["ok", "privateDebt"],
+    cait: ["attention", "ok", "byDate", "missing"],
+    private: ["privateDebt", "byDate"],
+    overdue: ["byDate"],
+    soon: ["byDate"],
+    missing: ["missing"]
+  };
+
+  const allowed = allowedByFilter[summaryFilter] || [];
+  const shouldHideGroup = allowed.length <= 1;
+  summarySubFiltersGroup.classList.toggle("hidden", shouldHideGroup || summaryFilter === "all");
+
+  summarySubFilterButtons.forEach(btn => {
+    const key = btn.dataset.summarySubfilter;
+    const isAllowed = summaryFilter === "all" ? key === "all" : allowed.includes(key);
+    btn.classList.toggle("hidden", summaryFilter === "all" ? key !== "all" : !isAllowed);
+  });
+
+  const allowedSelection = summaryFilter === "all" ? ["all"] : allowed;
+  if (!allowedSelection.includes(summarySubFilter)) {
+    summarySubFilter = allowedSelection[0] || "all";
+  }
+
+  summarySubFilterButtons.forEach(b => {
+    const isActive = b.dataset.summarySubfilter === summarySubFilter;
+    b.classList.toggle("active", isActive);
+    b.setAttribute("aria-pressed", String(isActive));
+  });
+}
 
 exportBtn.addEventListener("click", () => {
   const payload = JSON.stringify(state, null, 2);
@@ -153,6 +189,7 @@ const summaryStats = document.getElementById("summaryStats");
 const summaryList = document.getElementById("summaryList");
 
 // Initial render
+updateSummarySubFilters();
 render();
 initFirebaseSync();
 
