@@ -179,6 +179,15 @@ function todayYMD(){
   return toYMD(d);
 }
 
+function getMonthKey(ymdOrDate){
+  if (!ymdOrDate) return null;
+  const d = ymdOrDate instanceof Date ? ymdOrDate : parseYMD(ymdOrDate);
+  if (!d) return null;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2,"0");
+  return `${yyyy}-${mm}`;
+}
+
 function toYMD(d){
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2,"0");
@@ -230,6 +239,52 @@ function statusFor(dueYMD){
   return {cls:"ok", label:"OK"};
 }
 
+function isDueInThisMonth(dueYMD, monthKey){
+  if (!dueYMD || !monthKey) return false;
+  return getMonthKey(dueYMD) === monthKey;
+}
+
+function getCaitMonthTodo(patient, monthKey){
+  const today = todayYMD();
+  const dueKinds = [];
+  const missingKinds = [];
+  const kinds = [
+    { label: "PIAT", last: patient.lastPIAT, months: 6 },
+    { label: "ENT", last: patient.lastENT, months: 1 },
+    { label: "FAM", last: patient.lastFAM, months: 3 }
+  ];
+
+  kinds.forEach(({ label, last, months }) => {
+    const next = last ? addMonths(last, months) : null;
+    if (!next) {
+      missingKinds.push(label);
+      dueKinds.push(label);
+      return;
+    }
+    const isOverdue = dayDiff(today, next) < 0;
+    if (isOverdue || isDueInThisMonth(next, monthKey)) {
+      dueKinds.push(label);
+    }
+  });
+
+  const uniqueDue = [...new Set(dueKinds)];
+  const ok = uniqueDue.length === 0;
+  const summaryText = ok ? "Todo al día" : `Este mes: falta ${uniqueDue.join(", ")}`;
+  const severity = ok ? "ok" : (missingKinds.length > 0 ? "warn" : "bad");
+
+  return {
+    missingKinds,
+    dueKinds: uniqueDue,
+    ok,
+    summaryText,
+    severity
+  };
+}
+
+function getPrivatePending(patient){
+  return patient.recoveries.reduce((sum, r) => sum + (Number(r.count)||0), 0);
+}
+
 // =====================
 // Render
 // =====================
@@ -242,6 +297,7 @@ function render(){
 
 function renderCait(){
   caitList.innerHTML = "";
+  const monthKey = getMonthKey(new Date());
 
   const query = caitSearch.value.trim().toLowerCase();
   const list = query
@@ -261,6 +317,13 @@ function renderCait(){
     const stPIAT = statusFor(nextPIAT);
     const stENT  = statusFor(nextENT);
     const stFAM  = statusFor(nextFAM);
+    const monthTodo = getCaitMonthTodo(p, monthKey);
+    const missingText = monthTodo.missingKinds.length
+      ? `Falta fecha: ${monthTodo.missingKinds.join(", ")}`
+      : "";
+    const monthBadgeText = missingText
+      ? (monthTodo.ok ? missingText : `${missingText} · ${monthTodo.summaryText}`)
+      : monthTodo.summaryText;
 
     const el = document.createElement("div");
     el.className = "item";
@@ -269,6 +332,7 @@ function renderCait(){
         <div>
           <div class="name">${escapeHtml(p.name)}</div>
           <div class="sub">CAIT</div>
+          <div class="badge"><span class="dot ${monthTodo.severity}"></span>${escapeHtml(monthBadgeText)}</div>
         </div>
         <div class="actions">
           <button class="btn small" data-edit-name data-scope="cait" data-id="${p.id}" type="button">Editar</button>
@@ -355,9 +419,9 @@ function renderPrivate(){
   }
 
   list.forEach(p => {
-    const totalPending = p.recoveries.reduce((sum, r) => sum + (Number(r.count)||0), 0);
+    const totalPending = getPrivatePending(p);
     const oldest = getOldestRecoveryDate(p.recoveries);
-    const st = statusFor(oldest); // si la fecha más antigua ya pasó, rojo
+    const debtStatus = totalPending > 0 ? { cls: "warn", label: "Con deuda" } : { cls: "ok", label: "Sin deuda" };
 
     const el = document.createElement("div");
     el.className = "item";
@@ -379,7 +443,12 @@ function renderPrivate(){
           <div class="line"><span>Pendientes</span><span><strong>${totalPending}</strong></span></div>
           <div class="line"><span>Desde</span><span>${formatDMY(oldest)}</span></div>
           <div class="actions">
-            <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
+            <span class="badge"><span class="dot ${debtStatus.cls}"></span>${debtStatus.label}</span>
+          </div>
+
+          <div class="actions">
+            <button class="btn small" data-addpending="${p.id}" type="button">+1 pendiente</button>
+            <button class="btn small" data-subpending="${p.id}" type="button">-1 pendiente</button>
           </div>
 
           <div class="sub" style="margin-top:10px;">Añadir recuperaciones</div>
@@ -420,6 +489,33 @@ function renderPrivate(){
         state.private = state.private.filter(x => x.id !== id);
         saveAndRender();
       }
+    });
+  });
+
+  privateList.querySelectorAll("[data-addpending]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-addpending");
+      const p = state.private.find(x => x.id === id);
+      if (!p) return;
+      const today = todayYMD();
+      const existing = p.recoveries.find(r => r.date === today);
+      if (existing) existing.count += 1;
+      else p.recoveries.push({ date: today, count: 1 });
+      p.recoveries.sort((a,b) => (a.date > b.date ? 1 : -1));
+      saveAndRender();
+    });
+  });
+
+  privateList.querySelectorAll("[data-subpending]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-subpending");
+      const p = state.private.find(x => x.id === id);
+      if (!p || p.recoveries.length === 0) return;
+
+      p.recoveries.sort((a,b) => (a.date > b.date ? 1 : -1));
+      p.recoveries[0].count -= 1;
+      if (p.recoveries[0].count <= 0) p.recoveries.shift();
+      saveAndRender();
     });
   });
 
@@ -503,6 +599,7 @@ function renderSummary(){
   const query = summarySearch.value.trim().toLowerCase();
   const matchesQuery = (name) => !query || name.toLowerCase().includes(query);
   const today = todayYMD();
+  const monthKey = getMonthKey(new Date());
   const isOverdue = (due) => dayDiff(today, due) < 0;
   const isSoon = (due) => {
     const diff = dayDiff(today, due);
@@ -515,6 +612,7 @@ function renderSummary(){
     if (summaryFilter === "overdue") return item.due && isOverdue(item.due);
     if (summaryFilter === "soon") return item.due && isSoon(item.due);
     if (summaryFilter === "missing") return !item.due;
+    if (summaryFilter === "thismonth") return true;
     return true;
   };
 
@@ -522,6 +620,9 @@ function renderSummary(){
   const privateItems = [];
   const missing = [];
   let missingCount = 0;
+  const caitMonthAttention = [];
+  const caitMonthOk = [];
+  const privateDebt = [];
 
   // CAIT items: next due for PIAT/ENT/FAM
   state.cait.forEach(p => {
@@ -540,15 +641,13 @@ function renderSummary(){
     entries.forEach(entry => {
       if (!entry.due) {
         missingCount += 1;
-        if (!hasAnyDue) {
-          missing.push({
-            patient: p.name,
-            scope: "CAIT",
-            kind: entry.label,
-            due: null,
-            extra: "Sin fecha"
-          });
-        }
+        missing.push({
+          patient: p.name,
+          scope: "CAIT",
+          kind: entry.label,
+          due: null,
+          extra: "Sin fecha"
+        });
       }
     });
 
@@ -561,12 +660,22 @@ function renderSummary(){
         entries
       });
     }
+
+    const monthTodo = getCaitMonthTodo(p, monthKey);
+    const monthEntry = {
+      patient: p.name,
+      scope: "CAIT",
+      monthTodo,
+      entries
+    };
+    if (monthTodo.ok) caitMonthOk.push(monthEntry);
+    else caitMonthAttention.push(monthEntry);
   });
 
   // PRIVADO items: listado de fechas de sesiones (sin atrasos)
   state.private.forEach(p => {
     const oldest = getOldestRecoveryDate(p.recoveries);
-    const totalPending = p.recoveries.reduce((sum, r) => sum + (Number(r.count)||0), 0);
+    const totalPending = getPrivatePending(p);
     if (totalPending > 0) {
       privateItems.push({
         patient: p.name,
@@ -574,6 +683,15 @@ function renderSummary(){
         kind: "RECUP",
         due: oldest,
         extra: `${totalPending} pend.`,
+        recoveries: p.recoveries
+      });
+    }
+
+    if (totalPending > 0) {
+      privateDebt.push({
+        patient: p.name,
+        scope: "Privado",
+        totalPending,
         recoveries: p.recoveries
       });
     }
@@ -602,98 +720,224 @@ function renderSummary(){
 
   // List
   summaryList.innerHTML = "";
-  if (withDate.length === 0 && missing.length === 0 && privateItems.length === 0){
+  const hasMonthData = caitMonthAttention.length > 0 || caitMonthOk.length > 0 || privateDebt.length > 0;
+  const hasDateData = withDate.length > 0 || missing.length > 0 || privateItems.length > 0;
+  if (!hasMonthData && !hasDateData){
     summaryList.innerHTML = `<div class="hint">Aún no hay fechas suficientes para generar resumen.</div>`;
     return;
   }
 
   let hasResults = false;
+  const showThisMonthOnly = summaryFilter === "thismonth";
+  const showMonthSections = ["all", "cait", "private", "thismonth"].includes(summaryFilter);
+  const showDateSections = !showThisMonthOnly;
+  const monthMatchesFilter = (scope) => {
+    if (summaryFilter === "cait") return scope === "CAIT";
+    if (summaryFilter === "private") return scope === "Privado";
+    if (summaryFilter === "thismonth") return scope === "CAIT" || scope === "Privado";
+    return true;
+  };
 
-  withDate
-    .filter(it => matchesFilter(it) && matchesQuery(it.patient))
-    .forEach(it => {
-    const row = document.createElement("div");
-    row.className = "item summaryCard";
-    if (it.kind === "CAIT") {
-      const summaryEntries = it.entries.map(entry => {
-        const st = statusFor(entry.due);
-        return `
-          <div class="summaryMini">
-            <span class="summaryMiniLabel">${entry.label}</span>
-            <span class="summaryMiniDate">${formatDMY(entry.due)}</span>
-            <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
+  if (showMonthSections) {
+    const filteredAttention = caitMonthAttention.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
+    const filteredOk = caitMonthOk.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
+    const filteredDebt = privateDebt.filter(it => matchesQuery(it.patient) && monthMatchesFilter(it.scope));
+
+    if (filteredAttention.length > 0) {
+      const divider = document.createElement("div");
+      divider.className = "hint";
+      divider.textContent = "Atención este mes (CAIT)";
+      summaryList.appendChild(divider);
+
+      filteredAttention.forEach(it => {
+        const missingText = it.monthTodo.missingKinds.length
+          ? `Falta fecha: ${it.monthTodo.missingKinds.join(", ")}`
+          : "";
+        const monthBadgeText = missingText
+          ? `${missingText} · ${it.monthTodo.summaryText}`
+          : it.monthTodo.summaryText;
+
+        const row = document.createElement("div");
+        row.className = "item summaryCard";
+        row.innerHTML = `
+          <div class="summaryRow">
+            <div>
+              <div class="summaryTitle">${escapeHtml(it.patient)}</div>
+              <div class="summaryMeta">${escapeHtml(it.scope)}</div>
+            </div>
+            <div class="summaryCaitGroup">
+              <div class="summaryMini">
+                <span class="summaryMiniLabel">Este mes</span>
+                <span class="summaryMiniDate">${escapeHtml(monthBadgeText)}</span>
+                <span class="badge"><span class="dot ${it.monthTodo.severity}"></span>${it.monthTodo.severity === "bad" ? "Pendiente" : "Revisar"}</span>
+              </div>
+            </div>
           </div>
         `;
-      }).join("");
-      row.innerHTML = `
-        <div class="summaryRow">
-          <div>
-            <div class="summaryTitle">${escapeHtml(it.patient)}</div>
-            <div class="summaryMeta">${escapeHtml(it.scope)}</div>
-          </div>
-          <div class="summaryCaitGroup">
-            ${summaryEntries}
-          </div>
-        </div>
-      `;
-    } else {
-      const st = statusFor(it.due);
-      row.innerHTML = `
-        <div class="summaryRow">
-          <div>
-            <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
-            <div class="summaryMeta">${escapeHtml(it.scope)}${it.extra ? " · " + escapeHtml(it.extra) : ""}</div>
-          </div>
-          <div class="summaryDue">
-            <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
-            <div class="summaryTitle">${formatDMY(it.due)}</div>
-          </div>
-        </div>
-      `;
+        summaryList.appendChild(row);
+        hasResults = true;
+      });
     }
-    summaryList.appendChild(row);
-    hasResults = true;
-  });
 
-  privateItems
-    .filter(it => matchesFilter(it) && matchesQuery(it.patient))
-    .forEach(it => {
-    const row = document.createElement("div");
-    row.className = "item summaryCard";
-    row.innerHTML = `
-      <div class="summaryRow">
-        <div>
-          <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
-          <div class="summaryMeta">${escapeHtml(it.scope)}${it.extra ? " · " + escapeHtml(it.extra) : ""}</div>
-        </div>
-        <div class="summarySessions">${renderRecoverySessionTags(it.recoveries)}</div>
-      </div>
-    `;
-    summaryList.appendChild(row);
-    hasResults = true;
-  });
+    if (filteredOk.length > 0 && !showThisMonthOnly) {
+      const divider = document.createElement("div");
+      divider.className = "hint";
+      divider.textContent = `Todo al día (CAIT) · ${filteredOk.length}`;
+      summaryList.appendChild(divider);
 
-  const missingFiltered = missing.filter(it => matchesFilter(it) && matchesQuery(it.patient));
-  if (missingFiltered.length > 0){
-    const divider = document.createElement("div");
-    divider.className = "hint";
-    divider.textContent = "Pendientes de fecha";
-    summaryList.appendChild(divider);
-    missingFiltered.forEach(it => {
+      filteredOk.slice(0, 10).forEach(it => {
+        const row = document.createElement("div");
+        row.className = "item summaryCard";
+        row.innerHTML = `
+          <div class="summaryRow">
+            <div>
+              <div class="summaryTitle">${escapeHtml(it.patient)}</div>
+              <div class="summaryMeta">${escapeHtml(it.scope)}</div>
+            </div>
+            <div class="summaryCaitGroup">
+              <div class="summaryMini">
+                <span class="summaryMiniLabel">Este mes</span>
+                <span class="summaryMiniDate">Todo al día</span>
+                <span class="badge"><span class="dot ok"></span>OK</span>
+              </div>
+            </div>
+          </div>
+        `;
+        summaryList.appendChild(row);
+        hasResults = true;
+      });
+      if (filteredOk.length > 10) {
+        const more = document.createElement("div");
+        more.className = "hint";
+        more.textContent = `Mostrando 10 de ${filteredOk.length}. Usa búsqueda para ver más.`;
+        summaryList.appendChild(more);
+      }
+    }
+
+    if (filteredDebt.length > 0) {
+      const divider = document.createElement("div");
+      divider.className = "hint";
+      divider.textContent = "Privados con deuda";
+      summaryList.appendChild(divider);
+
+      filteredDebt.forEach(it => {
+        const row = document.createElement("div");
+        row.className = "item summaryCard";
+        row.innerHTML = `
+          <div class="summaryRow">
+            <div>
+              <div class="summaryTitle">${escapeHtml(it.patient)} · RECUP</div>
+              <div class="summaryMeta">${escapeHtml(it.scope)} · ${it.totalPending} pend.</div>
+            </div>
+            <div class="summaryCaitGroup">
+              <div class="summaryMini">
+                <span class="summaryMiniLabel">Pendientes</span>
+                <span class="summaryMiniDate">${it.totalPending}</span>
+                <span class="badge"><span class="dot warn"></span>Deuda</span>
+              </div>
+            </div>
+          </div>
+        `;
+        summaryList.appendChild(row);
+        hasResults = true;
+      });
+    }
+  }
+
+  if (showDateSections) {
+    if (withDate.length > 0 || privateItems.length > 0 || missing.length > 0) {
+      const divider = document.createElement("div");
+      divider.className = "hint";
+      divider.textContent = "Por fecha";
+      summaryList.appendChild(divider);
+    }
+
+    withDate
+      .filter(it => matchesFilter(it) && matchesQuery(it.patient))
+      .forEach(it => {
+      const row = document.createElement("div");
+      row.className = "item summaryCard";
+      if (it.kind === "CAIT") {
+        const summaryEntries = it.entries.map(entry => {
+          const st = statusFor(entry.due);
+          return `
+            <div class="summaryMini">
+              <span class="summaryMiniLabel">${entry.label}</span>
+              <span class="summaryMiniDate">${formatDMY(entry.due)}</span>
+              <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
+            </div>
+          `;
+        }).join("");
+        row.innerHTML = `
+          <div class="summaryRow">
+            <div>
+              <div class="summaryTitle">${escapeHtml(it.patient)}</div>
+              <div class="summaryMeta">${escapeHtml(it.scope)}</div>
+            </div>
+            <div class="summaryCaitGroup">
+              ${summaryEntries}
+            </div>
+          </div>
+        `;
+      } else {
+        const st = statusFor(it.due);
+        row.innerHTML = `
+          <div class="summaryRow">
+            <div>
+              <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
+              <div class="summaryMeta">${escapeHtml(it.scope)}${it.extra ? " · " + escapeHtml(it.extra) : ""}</div>
+            </div>
+            <div class="summaryDue">
+              <span class="badge"><span class="dot ${st.cls}"></span>${st.label}</span>
+              <div class="summaryTitle">${formatDMY(it.due)}</div>
+            </div>
+          </div>
+        `;
+      }
+      summaryList.appendChild(row);
+      hasResults = true;
+    });
+
+    privateItems
+      .filter(it => matchesFilter(it) && matchesQuery(it.patient))
+      .forEach(it => {
       const row = document.createElement("div");
       row.className = "item summaryCard";
       row.innerHTML = `
         <div class="summaryRow">
           <div>
             <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
-            <div class="summaryMeta">${escapeHtml(it.scope)} · ${escapeHtml(it.extra)}</div>
+            <div class="summaryMeta">${escapeHtml(it.scope)}${it.extra ? " · " + escapeHtml(it.extra) : ""}</div>
           </div>
-          <div class="summaryTitle">—</div>
+          <div class="summarySessions">${renderRecoverySessionTags(it.recoveries)}</div>
         </div>
       `;
       summaryList.appendChild(row);
       hasResults = true;
     });
+
+    const missingFiltered = missing.filter(it => matchesFilter(it) && matchesQuery(it.patient));
+    if (missingFiltered.length > 0){
+      const divider = document.createElement("div");
+      divider.className = "hint";
+      divider.textContent = "Pendientes de fecha";
+      summaryList.appendChild(divider);
+      missingFiltered.forEach(it => {
+        const row = document.createElement("div");
+        row.className = "item summaryCard";
+        row.innerHTML = `
+          <div class="summaryRow">
+            <div>
+              <div class="summaryTitle">${escapeHtml(it.patient)} · ${escapeHtml(it.kind)}</div>
+              <div class="summaryMeta">${escapeHtml(it.scope)} · ${escapeHtml(it.extra)}</div>
+            </div>
+            <div class="summaryTitle">—</div>
+          </div>
+        `;
+        summaryList.appendChild(row);
+        hasResults = true;
+      });
+    }
   }
 
   if (!hasResults){
