@@ -11,12 +11,17 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Control pacientes</h1>
-    <nav class="tabs" aria-label="Secciones" role="tablist">
-      <button class="tab active" data-view="summary" type="button" role="tab" aria-selected="true">Resumen</button>
-      <button class="tab" data-view="cait" type="button" role="tab" aria-selected="false">CAIT</button>
-      <button class="tab" data-view="private" type="button" role="tab" aria-selected="false">Privado</button>
-    </nav>
+    <div class="topbar__content">
+      <div class="topbar__title">
+        <h1>Control pacientes</h1>
+        <p class="subtitle">Seguimiento claro, rápido y ordenado.</p>
+      </div>
+      <nav class="tabs" aria-label="Secciones" role="tablist">
+        <button class="tab active" data-view="summary" type="button" role="tab" aria-selected="true">Resumen</button>
+        <button class="tab" data-view="cait" type="button" role="tab" aria-selected="false">CAIT</button>
+        <button class="tab" data-view="private" type="button" role="tab" aria-selected="false">Privado</button>
+      </nav>
+    </div>
   </header>
 
   <main class="wrap">
@@ -100,6 +105,8 @@
   <footer class="footer">
     <small>Datos guardados localmente y sincronizados con Firebase.</small>
   </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <script type="module" src="app.js"></script>
 </body>

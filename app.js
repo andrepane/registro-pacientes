@@ -53,9 +53,11 @@ const lastUpdated = document.getElementById("lastUpdated");
 const summarySearch = document.getElementById("summarySearch");
 const summaryFilterButtons = document.querySelectorAll("[data-summary-filter]");
 const summarySubFilterButtons = document.querySelectorAll("[data-summary-subfilter]");
+const toast = document.getElementById("toast");
 
 let summaryFilter = "all";
 let summarySubFilter = "all";
+let toastTimer = null;
 
 caitForm.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -456,6 +458,7 @@ function renderCait(){
 
   bindNameEdits(caitList);
   bindNotesSave(caitList, "cait");
+  animateList(caitList);
 }
 
 function caitBox(code, last, next, st, kind, id){
@@ -637,6 +640,7 @@ function renderPrivate(){
 
   bindNameEdits(privateList);
   bindNotesSave(privateList, "private");
+  animateList(privateList);
 }
 
 function getOldestRecoveryDate(recs){
@@ -1055,6 +1059,7 @@ function renderSummary(){
   }
 
   summaryList.innerHTML = renderedSections;
+  animateList(summaryList);
 }
 
 function makeSummaryItem(patientName, scope, kind, due){
@@ -1087,6 +1092,25 @@ function saveState(){
 function saveAndRender(){
   saveState();
   render();
+  showToast("Guardado");
+}
+
+function animateList(container){
+  if (!container) return;
+  container.classList.remove("is-animating");
+  void container.offsetWidth;
+  container.classList.add("is-animating");
+  setTimeout(() => container.classList.remove("is-animating"), 500);
+}
+
+function showToast(message){
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("is-visible");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("is-visible");
+  }, 1800);
 }
 
 function initFirebaseSync(){
