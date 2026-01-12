@@ -42,6 +42,7 @@ tabs.forEach(btn => {
 // Forms
 const caitForm = document.getElementById("caitForm");
 const caitName = document.getElementById("caitName");
+const caitBirth = document.getElementById("caitBirth");
 const caitSearch = document.getElementById("caitSearch");
 const privateForm = document.getElementById("privateForm");
 const privateName = document.getElementById("privateName");
@@ -67,8 +68,10 @@ caitForm.addEventListener("submit", (e) => {
     alert("Este paciente ya existe en CAIT.");
     return;
   }
-  state.cait.push(makeCaitPatient(name));
+  const birthDate = caitBirth.value || null;
+  state.cait.push(makeCaitPatient(name, birthDate));
   caitName.value = "";
+  caitBirth.value = "";
   saveAndRender();
 });
 
@@ -165,10 +168,11 @@ function makeId(){
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
 
-function makeCaitPatient(name){
+function makeCaitPatient(name, birthDate = null){
   return {
     id: makeId(),
     name,
+    birthDate,
     notes: "",
     // Dates stored as yyyy-mm-dd string or null
     lastPIAT: null,
@@ -243,6 +247,32 @@ function dayDiff(fromYMD, toYMDStr){
   const a = new Date(A.getFullYear(), A.getMonth(), A.getDate()).getTime();
   const b = new Date(B.getFullYear(), B.getMonth(), B.getDate()).getTime();
   return Math.round((b - a) / ms);
+}
+
+function getAgeInfo(birthYMD, referenceYMD = todayYMD()){
+  const birth = parseYMD(birthYMD);
+  const ref = parseYMD(referenceYMD);
+  if (!birth || !ref) return null;
+
+  let months = (ref.getFullYear() - birth.getFullYear()) * 12 + (ref.getMonth() - birth.getMonth());
+  if (ref.getDate() < birth.getDate()) months -= 1;
+  if (months < 0) return null;
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  return {
+    years,
+    months: remainingMonths,
+    totalMonths: months,
+    label: `${years}a ${remainingMonths}m`
+  };
+}
+
+function getSixYearsWarning(birthYMD){
+  const info = getAgeInfo(birthYMD);
+  if (!info) return null;
+  const monthsLeft = 72 - info.totalMonths;
+  if (monthsLeft < 0 || monthsLeft > 6) return null;
+  return { monthsLeft };
 }
 
 function statusFor(dueYMD){
@@ -391,6 +421,14 @@ function renderCait(){
     const stPIAT = statusFor(nextPIAT);
     const stENT  = statusFor(nextENT);
     const stFAM  = statusFor(nextFAM);
+    const ageInfo = getAgeInfo(p.birthDate);
+    const sixWarning = getSixYearsWarning(p.birthDate);
+    const ageLabel = ageInfo ? ageInfo.label : "—";
+    const warningLabel = sixWarning
+      ? (sixWarning.monthsLeft === 0
+        ? "Cumple 6 años este mes"
+        : `Faltan ${sixWarning.monthsLeft} ${sixWarning.monthsLeft === 1 ? "mes" : "meses"} para 6 años`)
+      : "";
     const monthTodo = getCaitMonthTodo(p, monthKey);
     const missingText = monthTodo.missingKinds.length
       ? `Falta fecha: ${monthTodo.missingKinds.join(", ")}`
@@ -414,10 +452,11 @@ function renderCait(){
         </div>
       </div>
 
-      <div class="grid3">
+      <div class="grid4">
         ${caitBox("PIAT", p.lastPIAT, nextPIAT, stPIAT, "piat", p.id)}
         ${caitBox("ENT",  p.lastENT,  nextENT,  stENT,  "ent",  p.id)}
         ${caitBox("FAM",  p.lastFAM,  nextFAM,  stFAM,  "fam",  p.id)}
+        ${caitBirthBox(p.birthDate, ageLabel, warningLabel, p.id)}
       </div>
       <div class="notes">
         <label class="sub" for="notes-cait-${p.id}">Notas</label>
@@ -456,6 +495,18 @@ function renderCait(){
     });
   });
 
+  caitList.querySelectorAll("[data-setbirth]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      const input = document.getElementById(`birth-${id}`);
+      const val = input?.value || null;
+      const p = state.cait.find(x => x.id === id);
+      if (!p) return;
+      p.birthDate = val;
+      saveAndRender();
+    });
+  });
+
   bindNameEdits(caitList);
   bindNotesSave(caitList, "cait");
   animateList(caitList);
@@ -473,6 +524,28 @@ function caitBox(code, last, next, st, kind, id){
       <input id="last-${kind}-${id}" type="date" value="${last ?? ""}" />
       <div class="actions">
         <button class="btn small primary" data-setlast data-id="${id}" data-kind="${kind}" type="button">
+          Guardar
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function caitBirthBox(birthDate, ageLabel, warningLabel, id){
+  const warningBadge = warningLabel
+    ? `<span class="badge"><span class="dot warn"></span>${escapeHtml(warningLabel)}</span>`
+    : "";
+  return `
+    <div class="box">
+      <b>NACIMIENTO</b>
+      <div class="line"><span>Nac.</span><span>${formatDMY(birthDate)}</span></div>
+      <div class="line"><span>Edad</span><span>${escapeHtml(ageLabel)}</span></div>
+      <div class="actions">
+        ${warningBadge}
+      </div>
+      <input id="birth-${id}" type="date" value="${birthDate ?? ""}" />
+      <div class="actions">
+        <button class="btn small primary" data-setbirth data-id="${id}" type="button">
           Guardar
         </button>
       </div>
@@ -1239,6 +1312,7 @@ function hydrateState(parsed){
     cait: cait.map(p => ({
       id: p.id ?? makeId(),
       name: String(p.name ?? ""),
+      birthDate: p.birthDate ?? null,
       notes: String(p.notes ?? ""),
       lastPIAT: p.lastPIAT ?? null,
       lastENT: p.lastENT ?? null,
