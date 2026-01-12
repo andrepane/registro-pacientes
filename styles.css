@@ -349,6 +349,13 @@ h2{
   gap:12px;
 }
 
+.grid4{
+  margin-top: 12px;
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap:12px;
+}
+
 .box{
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -626,6 +633,7 @@ h2{
 
 @media (max-width: 900px){
   .grid3{ grid-template-columns: 1fr; }
+  .grid4{ grid-template-columns: 1fr; }
   .topbar__content{ align-items: flex-start; }
 }
 
