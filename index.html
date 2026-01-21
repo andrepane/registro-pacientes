@@ -32,7 +32,15 @@
         <div class="hint">Este mes + fechas (rojo = atrasado, ámbar = pronto)</div>
       </div>
       <div class="row summaryControls">
+        <label class="sr-only" for="summarySearch">Buscar en resumen</label>
         <input id="summarySearch" class="search" type="search" placeholder="Buscar por nombre..." aria-label="Buscar en resumen" />
+      </div>
+      <div class="row summaryQuickActions">
+        <div class="hint">Accesos rápidos para agregar pacientes.</div>
+        <div class="actions">
+          <button class="btn small primary" type="button" data-go-view="cait">Añadir CAIT</button>
+          <button class="btn small" type="button" data-go-view="private">Añadir Privado</button>
+        </div>
       </div>
       <div class="row actionsRow">
         <div class="summaryMetaBlock">
@@ -63,6 +71,7 @@
           </label>
         </div>
       </div>
+      <div id="summaryHighlights" class="summaryHighlights"></div>
       <div id="summaryStats" class="stats"></div>
       <div id="summaryList" class="list summaryList"></div>
     </section>
@@ -74,10 +83,13 @@
       </div>
 
       <div class="row" style="margin-top:10px;">
+        <label class="sr-only" for="caitSearch">Buscar paciente CAIT</label>
         <input id="caitSearch" class="search" type="search" placeholder="Buscar..." aria-label="Buscar paciente CAIT" />
       </div>
       <form id="caitForm" class="form">
+        <label class="sr-only" for="caitName">Nombre o código del paciente CAIT</label>
         <input id="caitName" type="text" placeholder="Nombre / código" required minlength="2" />
+        <label class="sr-only" for="caitBirth">Fecha de nacimiento</label>
         <input id="caitBirth" type="date" aria-label="Fecha de nacimiento" />
         <button class="btn primary" type="submit">Añadir</button>
       </form>
@@ -92,9 +104,11 @@
       </div>
 
       <div class="row" style="margin-top:10px;">
+        <label class="sr-only" for="privateSearch">Buscar paciente Privado</label>
         <input id="privateSearch" class="search" type="search" placeholder="Buscar..." aria-label="Buscar paciente Privado" />
       </div>
       <form id="privateForm" class="form">
+        <label class="sr-only" for="privateName">Nombre o código del paciente Privado</label>
         <input id="privateName" type="text" placeholder="Nombre / código" required minlength="2" />
         <button class="btn primary" type="submit">Añadir</button>
       </form>
