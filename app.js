@@ -26,16 +26,20 @@ let stateDocRef = null;
 const tabs = document.querySelectorAll(".tab");
 const sections = document.querySelectorAll("[data-section]");
 
+function setActiveView(view){
+  if (!view) return;
+  tabs.forEach(b => {
+    const isActive = b.dataset.view === view;
+    b.classList.toggle("active", isActive);
+    b.setAttribute("aria-selected", String(isActive));
+  });
+  sections.forEach(sec => sec.classList.toggle("hidden", sec.dataset.section !== view));
+  render();
+}
+
 tabs.forEach(btn => {
   btn.addEventListener("click", () => {
-    tabs.forEach(b => {
-      const isActive = b === btn;
-      b.classList.toggle("active", isActive);
-      b.setAttribute("aria-selected", String(isActive));
-    });
-    const view = btn.dataset.view;
-    sections.forEach(sec => sec.classList.toggle("hidden", sec.dataset.section !== view));
-    render();
+    setActiveView(btn.dataset.view);
   });
 });
 
@@ -156,10 +160,20 @@ const caitList = document.getElementById("caitList");
 const privateList = document.getElementById("privateList");
 const summaryStats = document.getElementById("summaryStats");
 const summaryList = document.getElementById("summaryList");
+const summaryHighlights = document.getElementById("summaryHighlights");
+const quickActionButtons = document.querySelectorAll("[data-go-view]");
 
 // Initial render
 render();
 initFirebaseSync();
+
+quickActionButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const view = btn.dataset.goView;
+    setActiveView(view);
+    focusPrimaryField(view);
+  });
+});
 
 // =====================
 // Data model
@@ -400,7 +414,14 @@ function renderCait(){
     : state.cait;
 
   if (list.length === 0){
-    caitList.innerHTML = `<div class="hint">No hay pacientes CAIT aún.</div>`;
+    caitList.innerHTML = `
+      <div class="emptyState">
+        <strong>No hay pacientes CAIT aún.</strong>
+        <div class="hint">Empieza añadiendo un nombre o código en el formulario.</div>
+        <button class="btn small primary" type="button" data-focus="caitName">Añadir paciente</button>
+      </div>
+    `;
+    bindFocusButtons(caitList);
     return;
   }
 
@@ -562,7 +583,14 @@ function renderPrivate(){
     : state.private;
 
   if (list.length === 0){
-    privateList.innerHTML = `<div class="hint">No hay pacientes Privado aún.</div>`;
+    privateList.innerHTML = `
+      <div class="emptyState">
+        <strong>No hay pacientes Privado aún.</strong>
+        <div class="hint">Agrega un paciente para empezar a registrar recuperaciones.</div>
+        <button class="btn small primary" type="button" data-focus="privateName">Añadir paciente</button>
+      </div>
+    `;
+    bindFocusButtons(privateList);
     return;
   }
 
@@ -878,10 +906,36 @@ function renderSummary(){
 
   // Stats
   const overdue = withDate.filter(it => dayDiff(today, it.due) < 0).length;
+  const dueToday = withDate.filter(it => dayDiff(today, it.due) === 0).length;
   const soon = withDate.filter(it => {
     const d = dayDiff(today, it.due);
     return d !== null && d >= 0 && d <= 14;
   }).length;
+
+  if (summaryHighlights){
+    summaryHighlights.innerHTML = `
+      <div class="highlightCard">
+        <div class="highlightTitle">Atrasadas hoy</div>
+        <div class="highlightValue">${dueToday}</div>
+        <div class="hint">Pendientes con fecha igual a hoy.</div>
+      </div>
+      <div class="highlightCard">
+        <div class="highlightTitle">Próximas 14 días</div>
+        <div class="highlightValue">${soon}</div>
+        <div class="hint">Atención para organizar esta semana.</div>
+      </div>
+      <div class="highlightCard">
+        <div class="highlightTitle">Privados con deuda</div>
+        <div class="highlightValue">${privateDebt.length}</div>
+        <div class="hint">Sesiones pendientes por recuperar.</div>
+      </div>
+      <div class="highlightCard">
+        <div class="highlightTitle">Sin fecha</div>
+        <div class="highlightValue">${missingCount}</div>
+        <div class="hint">Registros sin próxima fecha.</div>
+      </div>
+    `;
+  }
 
   summaryStats.innerHTML = `
     <div class="pill"><b>${state.cait.length}</b> CAIT</div>
@@ -896,7 +950,17 @@ function renderSummary(){
   const hasMonthData = caitMonthAttention.length > 0 || caitMonthOk.length > 0 || privateDebt.length > 0;
   const hasDateData = withDate.length > 0 || missing.length > 0 || privateItems.length > 0;
   if (!hasMonthData && !hasDateData){
-    summaryList.innerHTML = `<div class="hint">Aún no hay fechas suficientes para generar resumen.</div>`;
+    summaryList.innerHTML = `
+      <div class="emptyState">
+        <strong>Aún no hay fechas suficientes para generar el resumen.</strong>
+        <div class="hint">Añade pacientes y fechas para ver los indicadores.</div>
+        <div class="actions">
+          <button class="btn small primary" type="button" data-go-view="cait">Añadir CAIT</button>
+          <button class="btn small" type="button" data-go-view="private">Añadir Privado</button>
+        </div>
+      </div>
+    `;
+    bindQuickActionButtons(summaryList);
     return;
   }
 
@@ -1127,7 +1191,12 @@ function renderSummary(){
   const renderedSections = keysToRender.map(key => sections[key]).filter(Boolean).join("");
 
   if (!renderedSections.trim()){
-    summaryList.innerHTML = `<div class="hint">Sin resultados con los filtros actuales.</div>`;
+    summaryList.innerHTML = `
+      <div class="emptyState">
+        <strong>Sin resultados con los filtros actuales.</strong>
+        <div class="hint">Prueba otro filtro o limpia la búsqueda.</div>
+      </div>
+    `;
     return;
   }
 
@@ -1286,6 +1355,42 @@ function bindNotesSave(container, scope){
       const input = document.getElementById(`notes-${scope}-${id}`);
       p.notes = input ? input.value.trim() : "";
       saveAndRender();
+    });
+  });
+}
+
+function focusPrimaryField(view){
+  const focusTargets = {
+    cait: caitName,
+    private: privateName,
+    summary: summarySearch
+  };
+  const target = focusTargets[view];
+  if (!target) return;
+  requestAnimationFrame(() => {
+    target.focus();
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
+function bindFocusButtons(container){
+  container.querySelectorAll("[data-focus]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.focus;
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.focus();
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+}
+
+function bindQuickActionButtons(container){
+  container.querySelectorAll("[data-go-view]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const view = btn.dataset.goView;
+      setActiveView(view);
+      focusPrimaryField(view);
     });
   });
 }
