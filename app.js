@@ -309,9 +309,9 @@ function getCaitMonthTodo(patient, monthKey){
   const dueKinds = [];
   const missingKinds = [];
   const kinds = [
-    { label: "PIAT", last: patient.lastPIAT, months: 6 },
-    { label: "ENT", last: patient.lastENT, months: 1 },
-    { label: "FAM", last: patient.lastFAM, months: 3 }
+    { label: "PIAT", last: patient.lastPIAT, months: 1 },
+    { label: "ENT", last: patient.lastENT, months: 2 },
+    { label: "FAM", last: patient.lastFAM, months: 1 }
   ];
 
   kinds.forEach(({ label, last, months }) => {
@@ -435,9 +435,9 @@ function renderCait(){
   });
 
   ordered.forEach(p => {
-    const nextPIAT = p.lastPIAT ? addMonths(p.lastPIAT, 6) : null;
-    const nextENT  = p.lastENT ? addMonths(p.lastENT, 1) : null;
-    const nextFAM  = p.lastFAM ? addMonths(p.lastFAM, 3) : null;
+    const nextPIAT = p.lastPIAT ? addMonths(p.lastPIAT, 1) : null;
+    const nextENT  = p.lastENT ? addMonths(p.lastENT, 2) : null;
+    const nextFAM  = p.lastFAM ? addMonths(p.lastFAM, 1) : null;
 
     const stPIAT = statusFor(nextPIAT);
     const stENT  = statusFor(nextENT);
@@ -817,9 +817,9 @@ function renderSummary(){
 
   // CAIT items: next due for PIAT/ENT/FAM
   state.cait.forEach(p => {
-    const nextPIAT = p.lastPIAT ? addMonths(p.lastPIAT, 6) : null;
-    const nextENT  = p.lastENT ? addMonths(p.lastENT, 1) : null;
-    const nextFAM  = p.lastFAM ? addMonths(p.lastFAM, 3) : null;
+    const nextPIAT = p.lastPIAT ? addMonths(p.lastPIAT, 1) : null;
+    const nextENT  = p.lastENT ? addMonths(p.lastENT, 2) : null;
+    const nextFAM  = p.lastFAM ? addMonths(p.lastFAM, 1) : null;
 
     const entries = [
       { label: "ENT", due: nextENT },
